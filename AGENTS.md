@@ -85,6 +85,12 @@ The main risk in this app is running out of memory on a large PDF on a phone.
 - **Decisions** are recorded in the planning doc
   (`docs/planning/architecture-decisions.html`) and §8 below. Write down any decision a
   future contributor would otherwise have to reverse-engineer.
+- **Keep docs current — no stale docs.** When behavior, decisions, or process change,
+  update the affected docs (this file first) in the **same** change. A doc that
+  contradicts reality is a bug; fix it on sight.
+- **Lessons learned go in `docs/conventions/working-agreements.md`** (the running log
+  there), not in any agent's private memory — so every agent sees them. That file also
+  holds our planning/build working agreements.
 
 ## 8. Architecture (decided 2026-06-03)
 
@@ -139,7 +145,8 @@ This project is built to be picked up by **any** coding agent at **any** commit,
 just the session that started it. To resume:
 
 1. Read this file, then **`PROGRESS.md`** (current state + active branch), then
-   **`docs/spec/pdf-to-cbz-v1.md`** (the contract) and **`docs/plan/implementation.md`**.
+   **`docs/spec/pdf-to-cbz-v1.md`** (the contract), **`docs/plan/implementation.md`**, and
+   **`docs/conventions/working-agreements.md`** (working agreements + lessons learned).
 2. `git log --oneline` shows the latest checkpoint; commit messages say what's next.
 3. Continue at the first unchecked item in `PROGRESS.md`; update and commit it as you go.
 
