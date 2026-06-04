@@ -379,7 +379,10 @@
             zip logic lives in standalone modules so the fallback is additive, not a rewrite.</li>
         <li><b>pdf.js worker bundled as a first-party asset</b> (no CDN). Where a runtime can
             spawn a nested worker it does; otherwise pdf.js imports the same bundled module on the
-            current thread. One bundled URL covers both; parallelism is a Phase 5 concern.</li>
+            current thread. One bundled URL covers both; parallelism is a Phase 5 concern.
+            Because rendering runs in a worker (no <code>document</code>), pdf.js is given
+            OffscreenCanvas-backed canvas and no-op filter factories so pages needing
+            intermediate canvases or SVG filters still render.</li>
         <li><b>STORE compression</b> (<code>ZipPassThrough</code>) for Phase 2 — pages are already
             compressed WebP/JPEG. Adaptive light DEFLATE arrives with the pool in Phase 5. Output
             MIME <code>application/vnd.comicbook+zip</code>, delivered Blob + anchor.</li>
