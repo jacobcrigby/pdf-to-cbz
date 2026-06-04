@@ -389,6 +389,11 @@
         <li><b>Render constants are build-time configurable</b> via Vite env vars (defaults
             <code>VITE_TARGET_LONG_EDGE_PX=1600</code>, <code>VITE_MAX_SCALE=2.0</code>,
             <code>VITE_ENCODE_QUALITY=0.8</code>), resolved in <code>core/render-config.ts</code>.</li>
+        <li><b>Phase 3 ComicInfo.xml from PDF info only.</b> Title/Writer/Summary/
+            Year-Month-Day/LanguageISO/PageCount plus a fixed provenance <code>Notes</code>;
+            empty fields omitted, values XML-escaped, elements in ComicInfo.xsd order, page 0 =
+            <code>FrontCover</code>. The user override form is Phase 6. Pages are numbered by
+            written count so a skipped page leaves no gap.</li>
       </ul>
     </div>
   </section>

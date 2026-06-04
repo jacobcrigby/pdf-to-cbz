@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import * as pdfjsLib from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import type { RawPdfMetadata } from '../core/pdf-metadata';
 
 // pdf.js needs its worker as a first-party asset (no CDN). Where a runtime can
 // spawn a nested worker it does; otherwise pdf.js imports this same module on the
@@ -81,6 +82,16 @@ export interface LoadedPage {
 export interface LoadedDocument {
   readonly pageCount: number;
   getPage(pageNumber: number): Promise<LoadedPage>;
+  getMetadata(): Promise<RawPdfMetadata>;
+}
+
+// PDF info values are typed as `unknown`; keep only non-empty strings.
+function str(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 /** Open a PDF from its bytes. Rejects on encrypted or malformed input. */
@@ -93,6 +104,17 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
   }).promise;
   return {
     pageCount: doc.numPages,
+    async getMetadata() {
+      const { info, metadata } = await doc.getMetadata();
+      const fields = info as Record<string, unknown>;
+      return {
+        title: str(fields.Title),
+        author: str(fields.Author),
+        subject: str(fields.Subject),
+        creationDate: str(fields.CreationDate),
+        language: str(fields.Language) ?? str(metadata?.get('dc:language')),
+      };
+    },
     async getPage(pageNumber) {
       const page = await doc.getPage(pageNumber);
       const unscaled = page.getViewport({ scale: 1 });

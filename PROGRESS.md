@@ -5,8 +5,8 @@ Single source of truth for **current state of work**, updated and committed with
 change so any agent can resume from the repo alone. See `docs/plan/implementation.md` for
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
-**Active branch:** `claude/festive-clarke-8Jl4K`
-**Current phase:** Phase 2 — Render path end-to-end
+**Active branch:** `main` (committing directly through v1)
+**Current phase:** Phase 3 — Naming, ordering, metadata
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -37,10 +37,14 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - Worker + OffscreenCanvas only; main-thread `<canvas>` fallback deferred (see decisions)
   - Render constants build-time configurable via `VITE_*` env (see `.env.example`)
   - Pure modules `core/scale.ts` + `core/naming.ts` unit-tested; render/worker path is manual e2e
-  - Pending: manual e2e — convert a real PDF, open the `.cbz` in a reader, confirm zero network
+  - Verified: real PDF converts and renders correctly with zero network
 
 ### Phase 3 — Naming, ordering, metadata
-- [ ] `naming.ts`, `pdf-metadata.ts`, `comicinfo.ts`; ComicInfo.xml + page-0 FrontCover
+- [x] `pdf-metadata.ts`, `comicinfo.ts`; ComicInfo.xml at root + page-0 FrontCover
+  - PDF-derived only (Title/Writer/Summary/Year-Month-Day/LanguageISO/PageCount/Notes); user
+    override form is Phase 6
+  - Worker numbers written pages contiguously so skips leave no gap; `naming.ts` unchanged
+  - Pending: manual e2e — inspect `ComicInfo.xml` in the `.cbz` and confirm cover/metadata in a reader
 
 ### Phase 4 — Hybrid extraction
 - [ ] `analyzePage` / `page-classifier` / `extractImageBytes` (JPEG) + render fallback
