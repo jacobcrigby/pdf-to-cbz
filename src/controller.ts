@@ -45,41 +45,43 @@ async function drive(
   const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
   const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
 
-  const buffer = await file.arrayBuffer();
-  const pool = await openPool(buffer, poolSize(capabilities), { encodeType, ext });
   try {
-    const { pageCount } = pool;
-    const writer = createCbzWriter();
-    let written = 0;
+    const buffer = await file.arrayBuffer();
+    const pool = await openPool(buffer, poolSize(capabilities), { encodeType, ext });
+    try {
+      const { pageCount } = pool;
+      const writer = createCbzWriter();
+      let written = 0;
 
-    await pool.run({
-      // Pages arrive in reading order, so written-index naming stays contiguous.
-      onPage(_index, bytes) {
-        writer.addStored(padPageName(written, pageCount, ext), bytes);
-        written += 1;
-      },
-      onSkip(index) {
-        handlers.onWarning(index + 1, 'Page skipped.');
-      },
-      onProgress(completed, total) {
-        handlers.onProgress(completed, total);
-      },
-    });
+      await pool.run({
+        // Pages arrive in reading order, so written-index naming stays contiguous.
+        onPage(_index, bytes) {
+          writer.addStored(padPageName(written, pageCount, ext), bytes);
+          written += 1;
+        },
+        onSkip(index) {
+          handlers.onWarning(index + 1, 'Page skipped.');
+        },
+        onProgress(completed, total) {
+          handlers.onProgress(completed, total);
+        },
+      });
 
-    const meta = toComicMetadata(pool.metadata ?? {}, {
-      fallbackTitle: filename.replace(/\.cbz$/i, ''),
-    });
-    writer.addStored('ComicInfo.xml', new TextEncoder().encode(buildComicInfoXml(meta, written)));
-    const archive = await writer.finish();
+      const meta = toComicMetadata(pool.metadata ?? {}, {
+        fallbackTitle: filename.replace(/\.cbz$/i, ''),
+      });
+      writer.addStored('ComicInfo.xml', new TextEncoder().encode(buildComicInfoXml(meta, written)));
+      const archive = await writer.finish();
 
-    triggerDownload(archive, filename);
-    handlers.onDone(filename);
+      triggerDownload(archive, filename);
+      handlers.onDone(filename);
+    } finally {
+      pool.terminate();
+    }
   } catch (error) {
     handlers.onError(
       error instanceof Error && error.message ? error.message : 'Conversion failed.',
     );
-  } finally {
-    pool.terminate();
   }
 }
 

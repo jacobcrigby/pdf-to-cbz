@@ -46,8 +46,10 @@ export async function openPool(
   }
   const terminate = (): void => workers.forEach((worker) => worker.terminate());
 
-  // Worker 0 keeps the original buffer (transferred) and reads the metadata; the
-  // rest get copies, since SharedArrayBuffer is unavailable on a static host.
+  // Each worker needs its own PDF copy (no SharedArrayBuffer on a static host).
+  // With one worker, transfer the original; with more, every worker gets a fresh
+  // copy so slicing never touches an already-transferred (detached) buffer.
+  const single = workers.length === 1;
   const opened = workers.map(
     (worker, i) =>
       new Promise<{ pageCount: number; metadata?: RawPdfMetadata }>((resolve, reject) => {
@@ -64,7 +66,7 @@ export async function openPool(
           }
         };
         worker.onerror = (event): void => reject(new Error(event.message || 'Worker failed.'));
-        const buf = i === 0 ? buffer : buffer.slice(0);
+        const buf = single ? buffer : buffer.slice(0);
         const request: RenderRequest = {
           type: 'open',
           buffer: buf,
