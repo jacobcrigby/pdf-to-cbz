@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { toOutputFilename } from './core/naming';
+import { buildComicInfoXml } from './core/comicinfo';
+import { padPageName, toOutputFilename, type PageExt } from './core/naming';
+import { toComicMetadata } from './core/pdf-metadata';
+import { poolSize } from './core/pool-size';
 import type { RuntimeCapabilities } from './core/runtime-capabilities';
-import type { ConvertRequest, ConvertResponse } from './core/types';
+import { createCbzWriter } from './zip/cbz';
+import { openPool } from './worker/pool';
 
 export interface ConversionHandlers {
   onProgress(page: number, pageCount: number): void;
@@ -10,7 +14,7 @@ export interface ConversionHandlers {
   onError(message: string): void;
 }
 
-// One PDF at a time: a job in flight owns the single worker until it settles.
+// One PDF at a time: a job in flight owns the worker pool until it settles.
 let running = false;
 
 /** Convert `file` to a CBZ and download it, reporting progress through `handlers`. */
@@ -27,7 +31,9 @@ export function startConversion(
     return;
   }
   running = true;
-  void drive(file, capabilities, handlers);
+  void drive(file, capabilities, handlers).finally(() => {
+    running = false;
+  });
 }
 
 async function drive(
@@ -35,46 +41,46 @@ async function drive(
   capabilities: RuntimeCapabilities,
   handlers: ConversionHandlers,
 ): Promise<void> {
-  const worker = new Worker(new URL('./worker/convert.worker.ts', import.meta.url), {
-    type: 'module',
-  });
-  const stop = (): void => {
-    worker.terminate();
-    running = false;
-  };
-
-  worker.onerror = (event): void => {
-    stop();
-    handlers.onError(event.message || 'Conversion failed.');
-  };
-  worker.onmessage = (event: MessageEvent<ConvertResponse>): void => {
-    const message = event.data;
-    switch (message.type) {
-      case 'progress':
-        handlers.onProgress(message.page, message.pageCount);
-        break;
-      case 'warning':
-        handlers.onWarning(message.page, message.message);
-        break;
-      case 'done':
-        triggerDownload(message.bytes, message.filename);
-        stop();
-        handlers.onDone(message.filename);
-        break;
-      case 'error':
-        stop();
-        handlers.onError(message.message);
-        break;
-    }
-  };
+  const filename = toOutputFilename(file.name);
+  const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
+  const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
 
   const buffer = await file.arrayBuffer();
-  const request: ConvertRequest = {
-    buffer,
-    capabilities,
-    filename: toOutputFilename(file.name),
-  };
-  worker.postMessage(request, [buffer]);
+  const pool = await openPool(buffer, poolSize(capabilities), { encodeType, ext });
+  try {
+    const { pageCount } = pool;
+    const writer = createCbzWriter();
+    let written = 0;
+
+    await pool.run({
+      // Pages arrive in reading order, so written-index naming stays contiguous.
+      onPage(_index, bytes) {
+        writer.addStored(padPageName(written, pageCount, ext), bytes);
+        written += 1;
+      },
+      onSkip(index) {
+        handlers.onWarning(index + 1, 'Page skipped.');
+      },
+      onProgress(completed, total) {
+        handlers.onProgress(completed, total);
+      },
+    });
+
+    const meta = toComicMetadata(pool.metadata ?? {}, {
+      fallbackTitle: filename.replace(/\.cbz$/i, ''),
+    });
+    writer.addStored('ComicInfo.xml', new TextEncoder().encode(buildComicInfoXml(meta, written)));
+    const archive = await writer.finish();
+
+    triggerDownload(archive, filename);
+    handlers.onDone(filename);
+  } catch (error) {
+    handlers.onError(
+      error instanceof Error && error.message ? error.message : 'Conversion failed.',
+    );
+  } finally {
+    pool.terminate();
+  }
 }
 
 function triggerDownload(bytes: Uint8Array<ArrayBuffer>, filename: string): void {

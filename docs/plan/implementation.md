@@ -62,8 +62,11 @@ stream back throughout. See spec §3 and §7.
   full-page image pages and render them at native resolution; mixed pages use the ~1600px
   target. True JPEG byte-passthrough is deferred — pdf.js doesn't expose original image bytes
   (see spec §3.2 v1 note).
-- **Phase 5 — Capability-sized pool + compression.** `worker/pool.ts`, `render.worker.ts`,
-  backpressure, ordered completion; adaptive level/pool/delivery.
+- **Phase 5 — Capability-sized pool.** `render.worker.ts` (renders one page on request) +
+  `worker/pool.ts` driving N workers, sized by `core/pool-size.ts`; `core/page-scheduler.ts`
+  gives reorder-window backpressure + ordered completion. Zip/ComicInfo/download moved to the
+  controller. Each worker holds its own PDF copy (no SharedArrayBuffer on a static host).
+  Adaptive DEFLATE and FSA delivery deferred (prioritized the pool); delivery stays Blob+anchor.
 - **Phase 6 — Metadata entry & overrides.** Pre-conversion form (spec §5.4), pre-filled +
   persisted locally.
 - **Phase 7 — UX hardening.** Progress, cancel, warn-and-continue summary, encrypted/corrupt

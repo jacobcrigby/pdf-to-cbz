@@ -400,6 +400,14 @@
             its native resolution, bounded by <code>VITE_NATIVE_MAX_LONG_EDGE_PX</code>
             (default 4000); mixed pages keep the ~1600px target. Misclassification only changes
             the scale, never correctness.</li>
+        <li><b>Phase 5 capability-sized render pool.</b> N render workers (sized from
+            cores/memory, clamped <code>[1, 4]</code>) each render one page at a time;
+            a pure reorder-window scheduler reassembles results in reading order with bounded
+            in-flight pages (backpressure). Each worker holds its own PDF copy —
+            <code>SharedArrayBuffer</code> needs COOP/COEP headers unavailable on GitHub Pages —
+            so the pool gates on <code>deviceMemory</code>. Zip/ComicInfo/download run on the
+            controller. To prioritize the speedup, adaptive DEFLATE and FSA streaming are
+            deferred: compression stays STORE and delivery stays Blob+anchor.</li>
       </ul>
     </div>
   </section>

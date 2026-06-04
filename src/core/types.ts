@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { RuntimeCapabilities } from './runtime-capabilities';
+import type { PageExt } from './naming';
+import type { RawPdfMetadata } from './pdf-metadata';
 
-/** Main thread → convert worker: the whole job. `buffer` is transferred, not copied. */
-export interface ConvertRequest {
-  readonly buffer: ArrayBuffer;
-  readonly capabilities: RuntimeCapabilities;
-  readonly filename: string;
-}
+/** Main thread → render worker. */
+export type RenderRequest =
+  | {
+      // Load the PDF and (for one worker) read its metadata. `buffer` is transferred.
+      readonly type: 'open';
+      readonly buffer: ArrayBuffer;
+      readonly withMetadata: boolean;
+      readonly encodeType: string;
+      readonly ext: PageExt;
+    }
+  | { readonly type: 'render'; readonly index: number };
 
-/** Convert worker → main thread: a progress/warning stream then one terminal message. */
-export type ConvertResponse =
-  | { readonly type: 'progress'; readonly page: number; readonly pageCount: number }
-  | { readonly type: 'warning'; readonly page: number; readonly message: string }
-  | { readonly type: 'done'; readonly bytes: Uint8Array<ArrayBuffer>; readonly filename: string }
-  | { readonly type: 'error'; readonly message: string };
+/** Render worker → main thread. */
+export type RenderResponse =
+  | { readonly type: 'opened'; readonly pageCount: number; readonly metadata?: RawPdfMetadata }
+  | { readonly type: 'open-error'; readonly message: string }
+  | { readonly type: 'rendered'; readonly index: number; readonly bytes: Uint8Array<ArrayBuffer> }
+  | { readonly type: 'render-error'; readonly index: number; readonly message: string };

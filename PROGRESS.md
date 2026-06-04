@@ -6,7 +6,7 @@ change so any agent can resume from the repo alone. See `docs/plan/implementatio
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 **Active branch:** `main` (committing directly through v1)
-**Current phase:** Phase 4 — Hybrid (pragmatic)
+**Current phase:** Phase 5 — Capability-sized pool
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -53,9 +53,16 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
     (see spec §3.2 v1 note); native-res cap is `VITE_NATIVE_MAX_LONG_EDGE_PX` (default 4000)
   - Pending: manual e2e — confirm a scanned/image PDF comes out sharper than the 1600px cap
 
-### Phase 5 — Capability-sized pool + compression
-- [ ] `worker/pool.ts`, `render.worker.ts`, backpressure, ordered completion
-- [ ] adaptive level / pool size / delivery wired from `runtime-capabilities.ts`
+### Phase 5 — Capability-sized pool
+- [x] `worker/render.worker.ts` (renders one page on request) + `worker/pool.ts` (drives N
+      workers); zip + ComicInfo + download moved to the controller (main thread)
+- [x] `core/page-scheduler.ts` (pure, tested): reorder-window backpressure + ordered emission
+- [x] `core/pool-size.ts` (pure, tested): pool size from cores/memory, clamped `[1, POOL_MAX=4]`
+- Each worker holds its own PDF copy (no SharedArrayBuffer on a static host); pool size gates
+  on `deviceMemory` to bound peak memory
+- Delivery stays Blob+anchor (FSA deferred); compression stays STORE (adaptive DEFLATE
+  deferred) — both by decision, to prioritize the pool
+- Pending: manual e2e — convert a multi-page PDF, confirm correct order + faster on desktop
 
 ### Phase 6 — Metadata entry & overrides
 - [ ] Pre-conversion form (spec §5.4), pre-filled + locally persisted
