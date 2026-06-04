@@ -60,6 +60,13 @@ quality, DPI, page range) beyond the single quality default; server features of 
   scale formula). This is a v1 constant; advanced controls are out of scope.
 - **FR-7** Pages appear in the archive in source page order (§5.1).
 
+> **v1 implementation note (hybrid):** pdf.js does not expose a page image's original
+> encoded bytes through its public API, so true DCTDecode byte-passthrough (FR-4 *extract*)
+> is **deferred**. Instead, a page detected as a single full-page image is **rendered at the
+> image's native resolution** (bypassing the ~1600px target of FR-6, bounded by a configurable
+> cap) so scans stay sharp; all pages are still encoded per FR-5. Byte-identical passthrough
+> can be revisited later via independent PDF stream parsing.
+
 ### 3.3 Archive & metadata
 - **FR-8** Output is a single `.cbz` (ZIP). Compression per §7.3 (adaptive light DEFLATE
   or STORE). The output filename derives from the source name, sanitized (§5.2).

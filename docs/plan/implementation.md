@@ -58,8 +58,10 @@ stream back throughout. See spec §3 and §7.
   download. First working CBZ.
 - **Phase 3 — Naming, ordering, metadata.** `naming.ts`, `comicinfo.ts`, `pdf-metadata.ts`;
   ComicInfo.xml with page-0 FrontCover.
-- **Phase 4 — Hybrid extraction.** `analyzePage`/`page-classifier`/`extractImageBytes`
-  (JPEG passthrough) + render fallback.
+- **Phase 4 — Hybrid (pragmatic).** `page-classifier` + page `analyze()` detect single
+  full-page image pages and render them at native resolution; mixed pages use the ~1600px
+  target. True JPEG byte-passthrough is deferred — pdf.js doesn't expose original image bytes
+  (see spec §3.2 v1 note).
 - **Phase 5 — Capability-sized pool + compression.** `worker/pool.ts`, `render.worker.ts`,
   backpressure, ordered completion; adaptive level/pool/delivery.
 - **Phase 6 — Metadata entry & overrides.** Pre-conversion form (spec §5.4), pre-filled +

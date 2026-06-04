@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import * as pdfjsLib from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { isSingleFullPageImage } from '../core/page-classifier';
 import type { RawPdfMetadata } from '../core/pdf-metadata';
 
 // pdf.js needs its worker as a first-party asset (no CDN). Where a runtime can
@@ -72,12 +73,46 @@ class NoFilterFactory {
   }
 }
 
+export interface PageAnalysis {
+  readonly singleFullPageImage: boolean;
+  readonly imageLongEdgePx?: number;
+}
+
 export interface LoadedPage {
   readonly widthPt: number;
   readonly heightPt: number;
+  /** Inspect the drawing operators to classify the page (single image vs mixed). */
+  analyze(): Promise<PageAnalysis>;
   /** Rasterize to `canvas` at `scale`, flattening transparency onto white. */
   render(canvas: OffscreenCanvas, scale: number): Promise<void>;
 }
+
+const { OPS } = pdfjsLib;
+
+// A single full-page image paints exactly one of these and nothing else.
+const IMAGE_PAINT_OPS = new Set<number>([OPS.paintImageXObject, OPS.paintInlineImageXObject]);
+
+// Text, path, and mask/repeat-image operators mean the page is more than a plain image.
+const DISQUALIFYING_OPS = new Set<number>([
+  OPS.showText,
+  OPS.showSpacedText,
+  OPS.nextLineShowText,
+  OPS.nextLineSetSpacingShowText,
+  OPS.stroke,
+  OPS.closeStroke,
+  OPS.fill,
+  OPS.eoFill,
+  OPS.fillStroke,
+  OPS.eoFillStroke,
+  OPS.closeFillStroke,
+  OPS.closeEOFillStroke,
+  OPS.paintImageMaskXObject,
+  OPS.paintImageMaskXObjectGroup,
+  OPS.paintImageMaskXObjectRepeat,
+  OPS.paintInlineImageXObjectGroup,
+  OPS.paintImageXObjectRepeat,
+  OPS.paintSolidColorImageMask,
+]);
 
 export interface LoadedDocument {
   readonly pageCount: number;
@@ -121,6 +156,39 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
       return {
         widthPt: unscaled.width,
         heightPt: unscaled.height,
+        async analyze() {
+          const { fnArray, argsArray } = await page.getOperatorList();
+          let imagePaintCount = 0;
+          let disqualifyingOpCount = 0;
+          let imageLongEdgePx: number | undefined;
+          for (let i = 0; i < fnArray.length; i += 1) {
+            const fn = fnArray[i];
+            if (fn === undefined) {
+              continue;
+            }
+            if (IMAGE_PAINT_OPS.has(fn)) {
+              imagePaintCount += 1;
+              // paintImageXObject args are [objId, widthPx, heightPx].
+              const args: unknown = argsArray[i];
+              if (
+                Array.isArray(args) &&
+                typeof args[1] === 'number' &&
+                typeof args[2] === 'number'
+              ) {
+                imageLongEdgePx = Math.max(args[1], args[2]);
+              }
+            } else if (DISQUALIFYING_OPS.has(fn)) {
+              disqualifyingOpCount += 1;
+            }
+          }
+          const singleFullPageImage = isSingleFullPageImage({
+            imagePaintCount,
+            disqualifyingOpCount,
+          });
+          return singleFullPageImage && imageLongEdgePx !== undefined
+            ? { singleFullPageImage, imageLongEdgePx }
+            : { singleFullPageImage };
+        },
         async render(canvas, scale) {
           const viewport = page.getViewport({ scale });
           canvas.width = Math.ceil(viewport.width);

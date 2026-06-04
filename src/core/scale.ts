@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { MAX_SCALE, TARGET_LONG_EDGE_PX } from './render-config';
+import { MAX_SCALE, NATIVE_MAX_LONG_EDGE_PX, TARGET_LONG_EDGE_PX } from './render-config';
 
 // Pages render at 1:1 or larger, never smaller: downscaling is left to the
 // reader, while a small source page is enlarged toward the target long edge.
@@ -23,4 +23,22 @@ export function renderScale(widthPt: number, heightPt: number, opts?: ScaleOptio
     return MIN_SCALE;
   }
   return Math.min(maxScale, Math.max(MIN_SCALE, target / longEdge));
+}
+
+/**
+ * Render scale for a page that is a single full-page image: reproduce the image
+ * at its native pixel resolution rather than the default target, bounded by
+ * `maxLongEdgePx` so a huge scan cannot allocate an unbounded canvas. Floored at
+ * MIN_SCALE so a low-resolution image is never upscaled.
+ */
+export function singleImageScale(
+  pageLongEdgePt: number,
+  imageLongEdgePx: number,
+  opts?: { maxLongEdgePx?: number },
+): number {
+  if (!(pageLongEdgePt > 0) || !(imageLongEdgePx > 0)) {
+    return MIN_SCALE;
+  }
+  const targetPx = Math.min(imageLongEdgePx, opts?.maxLongEdgePx ?? NATIVE_MAX_LONG_EDGE_PX);
+  return Math.max(MIN_SCALE, targetPx / pageLongEdgePt);
 }

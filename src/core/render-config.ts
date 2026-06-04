@@ -7,6 +7,7 @@
 const DEFAULT_TARGET_LONG_EDGE_PX = 1600;
 const DEFAULT_MAX_SCALE = 2.0;
 const DEFAULT_ENCODE_QUALITY = 0.8;
+const DEFAULT_NATIVE_MAX_LONG_EDGE_PX = 4000;
 
 function positiveOr(raw: string | undefined, fallback: number): number {
   const value = Number(raw);
@@ -27,4 +28,11 @@ export const MAX_SCALE = positiveOr(import.meta.env.VITE_MAX_SCALE, DEFAULT_MAX_
 export const ENCODE_QUALITY = unitFractionOr(
   import.meta.env.VITE_ENCODE_QUALITY,
   DEFAULT_ENCODE_QUALITY,
+);
+
+// Upper bound on the long edge when rendering a single full-page image at its
+// native resolution, so a high-DPI scan stays sharp without an unbounded canvas.
+export const NATIVE_MAX_LONG_EDGE_PX = positiveOr(
+  import.meta.env.VITE_NATIVE_MAX_LONG_EDGE_PX,
+  DEFAULT_NATIVE_MAX_LONG_EDGE_PX,
 );

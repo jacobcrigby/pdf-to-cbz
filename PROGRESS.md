@@ -6,7 +6,7 @@ change so any agent can resume from the repo alone. See `docs/plan/implementatio
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 **Active branch:** `main` (committing directly through v1)
-**Current phase:** Phase 3 — Naming, ordering, metadata
+**Current phase:** Phase 4 — Hybrid (pragmatic)
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -46,8 +46,12 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - Worker numbers written pages contiguously so skips leave no gap; `naming.ts` unchanged
   - Pending: manual e2e — inspect `ComicInfo.xml` in the `.cbz` and confirm cover/metadata in a reader
 
-### Phase 4 — Hybrid extraction
-- [ ] `analyzePage` / `page-classifier` / `extractImageBytes` (JPEG) + render fallback
+### Phase 4 — Hybrid (pragmatic)
+- [x] `page-classifier` + page `analyze()`: single full-page image pages render at native
+      resolution; mixed pages use the ~1600px target
+  - True JPEG byte-passthrough deferred — pdf.js doesn't expose original image bytes
+    (see spec §3.2 v1 note); native-res cap is `VITE_NATIVE_MAX_LONG_EDGE_PX` (default 4000)
+  - Pending: manual e2e — confirm a scanned/image PDF comes out sharper than the 1600px cap
 
 ### Phase 5 — Capability-sized pool + compression
 - [ ] `worker/pool.ts`, `render.worker.ts`, backpressure, ordered completion

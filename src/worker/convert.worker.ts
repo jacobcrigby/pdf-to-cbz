@@ -3,7 +3,7 @@ import { buildComicInfoXml } from '../core/comicinfo';
 import { ENCODE_QUALITY } from '../core/render-config';
 import { padPageName, type PageExt } from '../core/naming';
 import { toComicMetadata } from '../core/pdf-metadata';
-import { renderScale } from '../core/scale';
+import { renderScale, singleImageScale } from '../core/scale';
 import type { ConvertRequest, ConvertResponse } from '../core/types';
 import { loadDocument } from '../pdf/pdfjs';
 import { createCbzWriter } from '../zip/cbz';
@@ -44,8 +44,15 @@ async function run(request: ConvertRequest): Promise<void> {
   for (let index = 0; index < pageCount; index += 1) {
     try {
       const page = await doc.getPage(index + 1);
+      const analysis = await page.analyze();
+      // A single full-page image renders at its native resolution; mixed pages use
+      // the default long-edge target.
+      const scale =
+        analysis.singleFullPageImage && analysis.imageLongEdgePx !== undefined
+          ? singleImageScale(Math.max(page.widthPt, page.heightPt), analysis.imageLongEdgePx)
+          : renderScale(page.widthPt, page.heightPt);
       const canvas = new OffscreenCanvas(1, 1);
-      await page.render(canvas, renderScale(page.widthPt, page.heightPt));
+      await page.render(canvas, scale);
       const blob = await canvas.convertToBlob({ type: encode.type, quality: ENCODE_QUALITY });
       const bytes = new Uint8Array(await blob.arrayBuffer());
       writer.addStored(padPageName(written, pageCount, encode.ext), bytes);

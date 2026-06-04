@@ -5,4 +5,5 @@ interface ImportMetaEnv {
   readonly VITE_TARGET_LONG_EDGE_PX?: string;
   readonly VITE_MAX_SCALE?: string;
   readonly VITE_ENCODE_QUALITY?: string;
+  readonly VITE_NATIVE_MAX_LONG_EDGE_PX?: string;
 }

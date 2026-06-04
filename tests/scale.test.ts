@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { MIN_SCALE, renderScale } from '../src/core/scale';
+import { MIN_SCALE, renderScale, singleImageScale } from '../src/core/scale';
 
 // Tests pin explicit target/max so they do not depend on build-time env defaults.
 const opts = { targetLongEdgePx: 1600, maxScale: 2.0 } as const;
@@ -37,5 +37,27 @@ describe('renderScale', () => {
   it('returns the floor for non-positive dimensions instead of dividing by zero', () => {
     expect(renderScale(0, 0, opts)).toBe(MIN_SCALE);
     expect(renderScale(-10, -10, opts)).toBe(MIN_SCALE);
+  });
+});
+
+describe('singleImageScale', () => {
+  const cap = { maxLongEdgePx: 4000 } as const;
+
+  it('renders the page so the image lands at its native pixel size', () => {
+    // 600pt page holding a 1800px image wants 3x to reproduce it natively.
+    expect(singleImageScale(600, 1800, cap)).toBe(3);
+  });
+
+  it('caps the long edge so a huge scan cannot allocate an unbounded canvas', () => {
+    expect(singleImageScale(1000, 10000, cap)).toBe(4); // clamped to 4000px / 1000pt
+  });
+
+  it('never upscales a low-resolution image below 1:1', () => {
+    expect(singleImageScale(1000, 500, cap)).toBe(MIN_SCALE);
+  });
+
+  it('returns the floor for non-positive inputs', () => {
+    expect(singleImageScale(0, 1800, cap)).toBe(MIN_SCALE);
+    expect(singleImageScale(600, 0, cap)).toBe(MIN_SCALE);
   });
 });

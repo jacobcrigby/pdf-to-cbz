@@ -394,6 +394,12 @@
             empty fields omitted, values XML-escaped, elements in ComicInfo.xsd order, page 0 =
             <code>FrontCover</code>. The user override form is Phase 6. Pages are numbered by
             written count so a skipped page leaves no gap.</li>
+        <li><b>Phase 4 pragmatic hybrid (no byte-passthrough).</b> pdf.js does not expose a
+            page image's original encoded bytes, so true DCTDecode passthrough is deferred.
+            Instead a single full-page image page (detected via the operator list) renders at
+            its native resolution, bounded by <code>VITE_NATIVE_MAX_LONG_EDGE_PX</code>
+            (default 4000); mixed pages keep the ~1600px target. Misclassification only changes
+            the scale, never correctness.</li>
       </ul>
     </div>
   </section>
