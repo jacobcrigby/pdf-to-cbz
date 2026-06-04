@@ -6,7 +6,7 @@ change so any agent can resume from the repo alone. See `docs/plan/implementatio
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 **Active branch:** `claude/festive-clarke-8Jl4K`
-**Current phase:** Phase 1 — Scaffold + deploy runner
+**Current phase:** Phase 2 — Render path end-to-end
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -33,7 +33,11 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - One-time manual step: repo Settings > Pages > Source = "GitHub Actions"
 
 ### Phase 2 — Render path end-to-end
-- [ ] Bundled pdf.js in `convert.worker`; render-all → fflate zip → download
+- [x] Bundled pdf.js in `convert.worker`; render-all → fflate zip → download
+  - Worker + OffscreenCanvas only; main-thread `<canvas>` fallback deferred (see decisions)
+  - Render constants build-time configurable via `VITE_*` env (see `.env.example`)
+  - Pure modules `core/scale.ts` + `core/naming.ts` unit-tested; render/worker path is manual e2e
+  - Pending: manual e2e — convert a real PDF, open the `.cbz` in a reader, confirm zero network
 
 ### Phase 3 — Naming, ordering, metadata
 - [ ] `naming.ts`, `pdf-metadata.ts`, `comicinfo.ts`; ComicInfo.xml + page-0 FrontCover

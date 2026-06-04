@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { startConversion } from '../controller';
+import type { RuntimeCapabilities } from '../core/runtime-capabilities';
 import { setStatus, type UiElements } from './dom';
 
-/** Wire drop/select events on the shell. The conversion job lands in later phases. */
-export function initApp(elements: UiElements): void {
+/** Wire drop/select events on the shell so a chosen PDF starts a conversion job. */
+export function initApp(elements: UiElements, capabilities: RuntimeCapabilities): void {
   const { dropzone, fileInput } = elements;
 
   dropzone.addEventListener('dragover', (event) => {
@@ -15,16 +17,20 @@ export function initApp(elements: UiElements): void {
   dropzone.addEventListener('drop', (event) => {
     event.preventDefault();
     dropzone.classList.remove('dragging');
-    handleSelectedFile(elements, event.dataTransfer?.files[0]);
+    handleSelectedFile(elements, capabilities, event.dataTransfer?.files[0]);
   });
 
   fileInput.addEventListener('change', () => {
-    handleSelectedFile(elements, fileInput.files?.[0]);
+    handleSelectedFile(elements, capabilities, fileInput.files?.[0]);
   });
 }
 
 // One PDF at a time: a multi-file drop takes the first and ignores the rest.
-function handleSelectedFile(elements: UiElements, file: File | undefined): void {
+function handleSelectedFile(
+  elements: UiElements,
+  capabilities: RuntimeCapabilities,
+  file: File | undefined,
+): void {
   if (!file) {
     return;
   }
@@ -32,22 +38,29 @@ function handleSelectedFile(elements: UiElements, file: File | undefined): void 
     setStatus(elements.status, 'Choose a PDF file.');
     return;
   }
-  setStatus(elements.status, `Selected: ${file.name} · ${formatBytes(file.size)}`);
+
+  elements.fileInput.disabled = true;
+  let skipped = 0;
+  startConversion(file, capabilities, {
+    onProgress(page, pageCount) {
+      setStatus(elements.status, `Converting page ${page} of ${pageCount}…`);
+    },
+    onWarning() {
+      skipped += 1;
+    },
+    onDone(filename) {
+      elements.fileInput.disabled = false;
+      const note = skipped > 0 ? ` (${skipped} page(s) skipped)` : '';
+      setStatus(elements.status, `Downloaded ${filename}${note}`);
+    },
+    onError(message) {
+      elements.fileInput.disabled = false;
+      setStatus(elements.status, message);
+    },
+  });
 }
 
 // The MIME type is empty on some platforms, so fall back to the extension.
 function isPdf(file: File): boolean {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-}
-
-function formatBytes(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  const rounded = unit === 0 ? value : Math.round(value * 10) / 10;
-  return `${rounded} ${units[unit]}`;
 }
