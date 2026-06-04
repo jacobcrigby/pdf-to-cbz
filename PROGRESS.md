@@ -60,8 +60,9 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - [x] `core/pool-size.ts` (pure, tested): pool size from cores/memory, clamped `[1, POOL_MAX=4]`
 - Each worker holds its own PDF copy (no SharedArrayBuffer on a static host); pool size gates
   on `deviceMemory` to bound peak memory
-- Delivery stays Blob+anchor (FSA deferred); compression stays STORE (adaptive DEFLATE
-  deferred) — both by decision, to prioritize the pool
+- Delivery: File System Access streaming when available (prompts save up front, streams the
+  archive to disk so it is never held in RAM), else Blob+anchor. Compression stays STORE
+  (adaptive DEFLATE deferred).
 - Memory discipline: `page.cleanup()` after each render (pdf.js caches grow otherwise);
   pool budget 4 GiB/worker (`deviceMemory` over-reports a mobile tab's real limit); native-res
   cap defaults to 2600px. Tune via `VITE_NATIVE_MAX_LONG_EDGE_PX` if needed.

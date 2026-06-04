@@ -406,8 +406,12 @@
             in-flight pages (backpressure). Each worker holds its own PDF copy —
             <code>SharedArrayBuffer</code> needs COOP/COEP headers unavailable on GitHub Pages —
             so the pool gates on <code>deviceMemory</code>. Zip/ComicInfo/download run on the
-            controller. To prioritize the speedup, adaptive DEFLATE and FSA streaming are
-            deferred: compression stays STORE and delivery stays Blob+anchor.</li>
+            controller. Adaptive DEFLATE is deferred (compression stays STORE).</li>
+        <li><b>Delivery: File System Access streaming when available.</b> When
+            <code>showSaveFilePicker</code> exists, the save location is requested up front
+            (within the user gesture) and the archive streams straight to disk, so it is never
+            held in RAM; otherwise a Blob + anchor download collects it in memory. The CBZ
+            writer drives a sink, so the two paths share one code path.</li>
       </ul>
     </div>
   </section>
