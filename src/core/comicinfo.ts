@@ -9,14 +9,30 @@ export function buildComicInfoXml(meta: ComicMetadata, pageCount: number): strin
   // ComicInfo.xsd is an ordered sequence; strict validators reject out-of-order elements.
   const elements: ReadonlyArray<readonly [string, string | number | undefined]> = [
     ['Title', meta.title],
+    ['Series', meta.series],
+    ['Number', meta.number],
+    ['Count', meta.count],
+    ['Volume', meta.volume],
     ['Summary', meta.summary],
     ['Notes', meta.notes],
     ['Year', meta.year],
     ['Month', meta.month],
     ['Day', meta.day],
     ['Writer', meta.writer],
+    ['Penciller', meta.penciller],
+    ['Inker', meta.inker],
+    ['Colorist', meta.colorist],
+    ['Letterer', meta.letterer],
+    ['CoverArtist', meta.coverArtist],
+    ['Editor', meta.editor],
+    ['Publisher', meta.publisher],
+    ['Genre', meta.genre],
+    ['Tags', meta.tags],
+    ['Web', meta.web],
     ['PageCount', pageCount],
     ['LanguageISO', meta.languageISO],
+    ['Manga', meta.manga],
+    ['AgeRating', meta.ageRating],
   ];
 
   const body = elements

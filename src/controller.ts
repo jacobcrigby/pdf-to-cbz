@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { buildComicInfoXml } from './core/comicinfo';
 import { padPageName, toOutputFilename, type PageExt } from './core/naming';
-import { toComicMetadata } from './core/pdf-metadata';
+import type { ComicMetadata } from './core/pdf-metadata';
 import { poolSize } from './core/pool-size';
 import type { RuntimeCapabilities } from './core/runtime-capabilities';
 import { createCbzWriter, type ArchiveSink } from './zip/cbz';
@@ -19,10 +19,11 @@ const CBZ_MIME = 'application/vnd.comicbook+zip';
 // One PDF at a time: a job in flight owns the worker pool until it settles.
 let running = false;
 
-/** Convert `file` to a CBZ and download it, reporting progress through `handlers`. */
+/** Convert `file` to a CBZ with the given metadata and download it. */
 export function startConversion(
   file: File,
   capabilities: RuntimeCapabilities,
+  metadata: ComicMetadata,
   handlers: ConversionHandlers,
 ): void {
   if (running) {
@@ -33,7 +34,7 @@ export function startConversion(
     return;
   }
   running = true;
-  void drive(file, capabilities, handlers).finally(() => {
+  void drive(file, capabilities, metadata, handlers).finally(() => {
     running = false;
   });
 }
@@ -41,6 +42,7 @@ export function startConversion(
 async function drive(
   file: File,
   capabilities: RuntimeCapabilities,
+  metadata: ComicMetadata,
   handlers: ConversionHandlers,
 ): Promise<void> {
   const filename = toOutputFilename(file.name);
@@ -99,10 +101,10 @@ async function drive(
         },
       });
 
-      const meta = toComicMetadata(pool.metadata ?? {}, {
-        fallbackTitle: filename.replace(/\.cbz$/i, ''),
-      });
-      writer.addStored('ComicInfo.xml', new TextEncoder().encode(buildComicInfoXml(meta, written)));
+      writer.addStored(
+        'ComicInfo.xml',
+        new TextEncoder().encode(buildComicInfoXml(metadata, written)),
+      );
       await writer.finish();
 
       if (blob) {

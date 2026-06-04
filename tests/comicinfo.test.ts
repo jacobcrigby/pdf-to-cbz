@@ -46,12 +46,42 @@ describe('buildComicInfoXml', () => {
     expect(text(doc, 'PageCount')).toBe('0');
   });
 
+  it('emits the user-supplied fields', () => {
+    const doc = parse(
+      buildComicInfoXml({ ...base, series: 'Zine', number: '3', manga: 'YesAndRightToLeft' }, 1),
+    );
+    expect(text(doc, 'Series')).toBe('Zine');
+    expect(text(doc, 'Number')).toBe('3');
+    expect(text(doc, 'Manga')).toBe('YesAndRightToLeft');
+  });
+
   it('emits elements in ComicInfo.xsd order', () => {
     const xml = buildComicInfoXml(
-      { title: 'T', summary: 'S', notes: 'N', year: 2026, writer: 'W', languageISO: 'en' },
+      {
+        title: 'T',
+        series: 'Se',
+        summary: 'S',
+        notes: 'N',
+        year: '2026',
+        writer: 'W',
+        publisher: 'P',
+        languageISO: 'en',
+        manga: 'No',
+      },
       4,
     );
-    const order = ['Title', 'Summary', 'Notes', 'Year', 'Writer', 'PageCount', 'LanguageISO'];
+    const order = [
+      'Title',
+      'Series',
+      'Summary',
+      'Notes',
+      'Year',
+      'Writer',
+      'Publisher',
+      'PageCount',
+      'LanguageISO',
+      'Manga',
+    ];
     const positions = order.map((tag) => xml.indexOf(`<${tag}>`));
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });

@@ -15,7 +15,6 @@ export interface RunHandlers {
 
 export interface RenderPool {
   readonly pageCount: number;
-  readonly metadata: RawPdfMetadata | undefined;
   /** Render every page, delivering results in order; resolves when all have settled. */
   run(handlers: RunHandlers): Promise<void>;
   terminate(): void;
@@ -34,7 +33,35 @@ function spawn(): Worker {
   return new Worker(new URL('./render.worker.ts', import.meta.url), { type: 'module' });
 }
 
-/** Spawn `size` render workers, each with its own PDF copy, and read the metadata. */
+/** Open the PDF in a throwaway worker just to read its document metadata. */
+export async function readPdfMetadata(buffer: ArrayBuffer): Promise<RawPdfMetadata | undefined> {
+  const worker = spawn();
+  try {
+    return await new Promise<RawPdfMetadata | undefined>((resolve, reject) => {
+      worker.onmessage = (event: MessageEvent<RenderResponse>): void => {
+        const message = event.data;
+        if (message.type === 'opened') {
+          resolve(message.metadata);
+        } else if (message.type === 'open-error') {
+          reject(new Error(message.message));
+        }
+      };
+      worker.onerror = (event): void => reject(new Error(event.message || 'Worker failed.'));
+      const request: RenderRequest = {
+        type: 'open',
+        buffer,
+        withMetadata: true,
+        encodeType: 'image/webp',
+        ext: 'webp',
+      };
+      worker.postMessage(request, [buffer]);
+    });
+  } finally {
+    worker.terminate();
+  }
+}
+
+/** Spawn `size` render workers, each with its own PDF copy. */
 export async function openPool(
   buffer: ArrayBuffer,
   size: number,
@@ -51,16 +78,12 @@ export async function openPool(
   // copy so slicing never touches an already-transferred (detached) buffer.
   const single = workers.length === 1;
   const opened = workers.map(
-    (worker, i) =>
-      new Promise<{ pageCount: number; metadata?: RawPdfMetadata }>((resolve, reject) => {
+    (worker) =>
+      new Promise<number>((resolve, reject) => {
         worker.onmessage = (event: MessageEvent<RenderResponse>): void => {
           const message = event.data;
           if (message.type === 'opened') {
-            resolve(
-              message.metadata
-                ? { pageCount: message.pageCount, metadata: message.metadata }
-                : { pageCount: message.pageCount },
-            );
+            resolve(message.pageCount);
           } else if (message.type === 'open-error') {
             reject(new Error(message.message));
           }
@@ -70,7 +93,7 @@ export async function openPool(
         const request: RenderRequest = {
           type: 'open',
           buffer: buf,
-          withMetadata: i === 0,
+          withMetadata: false,
           encodeType: opts.encodeType,
           ext: opts.ext,
         };
@@ -78,20 +101,18 @@ export async function openPool(
       }),
   );
 
-  let results: Array<{ pageCount: number; metadata?: RawPdfMetadata }>;
+  let pageCounts: number[];
   try {
-    results = await Promise.all(opened);
+    pageCounts = await Promise.all(opened);
   } catch (error) {
     terminate();
     throw error;
   }
 
-  const pageCount = results[0]?.pageCount ?? 0;
-  const metadata = results[0]?.metadata;
+  const pageCount = pageCounts[0] ?? 0;
 
   return {
     pageCount,
-    metadata,
     terminate,
     run(handlers) {
       return drivePool(workers, pageCount, handlers);

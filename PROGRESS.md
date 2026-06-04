@@ -77,7 +77,14 @@ an up-front main-thread parse/spike, double-parsing, and static partitioning (lo
 replacing the current dynamic work-stealing scheduler.
 
 ### Phase 6 — Metadata entry & overrides
-- [ ] Pre-conversion form (spec §5.4), pre-filled + locally persisted
+- [x] Pre-conversion form (spec §5.4 fields), pre-filled + locally persisted
+  - Selecting a PDF reads its metadata (throwaway worker), then shows the form pre-filled
+    (PDF-derived wins, else last-used from localStorage); Convert click drives conversion and
+    is the user gesture for the FSA save picker
+  - `ComicMetadata` expanded to all §5.4 fields; `core/comicinfo.ts` emits them in xsd order;
+    persisted carry-over fields exclude per-issue ones (title/number/dates/summary)
+  - Pure helpers (`mergePrefill`/`persistableFields`/save+load) unit-tested; form render
+    smoke-tested in a real browser (23 fields, hidden until a PDF is chosen)
 
 ### Phase 7 — UX hardening
 - [ ] Progress, cancel, warn-and-continue summary, encrypted/corrupt handling, size warning

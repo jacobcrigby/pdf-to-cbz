@@ -52,3 +52,6 @@ Thumbs.db
 
 # Project-local context (machine-specific, keep untracked)
 .ghcontext
+
+# Playwright MCP artifacts
+.playwright-mcp/

@@ -40,11 +40,10 @@ describe('toComicMetadata', () => {
       title: 'My Zine',
       writer: 'A. Writer',
       summary: 'A summary',
-      year: 2026,
-      month: 6,
-      day: 3,
+      year: '2026',
+      month: '6',
+      day: '3',
       languageISO: 'en',
-      notes: 'Converted from PDF by pdf-to-cbz',
     });
   });
 
@@ -53,9 +52,9 @@ describe('toComicMetadata', () => {
     expect(meta.title).toBe('From Filename');
   });
 
-  it('omits absent fields but always records provenance notes', () => {
+  it('omits absent fields entirely', () => {
     const meta = toComicMetadata({}, { fallbackTitle: '' });
-    expect(meta).toEqual({ notes: 'Converted from PDF by pdf-to-cbz' });
+    expect(meta).toEqual({});
     expect('writer' in meta).toBe(false);
     expect('year' in meta).toBe(false);
   });

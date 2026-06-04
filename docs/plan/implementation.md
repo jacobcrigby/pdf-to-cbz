@@ -73,8 +73,11 @@ stream back throughout. See spec §3 and §7.
   `pdf-lib` so each worker loads only its page range, cutting steady-state memory for very large
   PDFs. Weigh: dependency size, up-front main-thread parse/spike, double-parse, and static
   partitioning vs the current dynamic scheduler.
-- **Phase 6 — Metadata entry & overrides.** Pre-conversion form (spec §5.4), pre-filled +
-  persisted locally.
+- **Phase 6 — Metadata entry & overrides.** Selecting a PDF reads its metadata
+  (`readPdfMetadata`, throwaway worker) and shows `ui/metadata-form.ts` pre-filled from
+  PDF-derived values then last-used (`localStorage`); the Convert click supplies the final
+  `ComicMetadata` to the controller and is the gesture for the FSA picker. Spec §5.4 fields,
+  persisted carry-over excludes per-issue ones.
 - **Phase 7 — UX hardening.** Progress, cancel, warn-and-continue summary, encrypted/corrupt
   handling, size/page-count warning.
 - **Phase 8 — Fast-follow (separate sign-off).** PWA (manifest + service worker) layered on

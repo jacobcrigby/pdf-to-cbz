@@ -11,17 +11,39 @@ export interface RawPdfMetadata {
   readonly language?: string | undefined;
 }
 
-/** Metadata shaped for ComicInfo.xml. `notes` always records provenance. */
+/**
+ * Metadata shaped for ComicInfo.xml — every field a trimmed string (or absent).
+ * The user form fills these; only `title`/`writer`/`summary`/dates/`languageISO`
+ * are PDF-derivable, the rest come from the form or persisted last-used values.
+ */
 export interface ComicMetadata {
   readonly title?: string;
-  readonly writer?: string;
+  readonly series?: string;
+  readonly number?: string;
+  readonly count?: string;
+  readonly volume?: string;
   readonly summary?: string;
-  readonly year?: number;
-  readonly month?: number;
-  readonly day?: number;
+  readonly notes?: string;
+  readonly year?: string;
+  readonly month?: string;
+  readonly day?: string;
+  readonly writer?: string;
+  readonly penciller?: string;
+  readonly inker?: string;
+  readonly colorist?: string;
+  readonly letterer?: string;
+  readonly coverArtist?: string;
+  readonly editor?: string;
+  readonly publisher?: string;
+  readonly genre?: string;
+  readonly tags?: string;
+  readonly web?: string;
   readonly languageISO?: string;
-  readonly notes: string;
+  readonly manga?: string;
+  readonly ageRating?: string;
 }
+
+export const PROVENANCE_NOTE = PROVENANCE;
 
 export interface PdfDateParts {
   readonly year: number;
@@ -61,11 +83,10 @@ export function toComicMetadata(
     ...optional('title', clean(raw.title) ?? clean(opts.fallbackTitle)),
     ...optional('writer', clean(raw.author)),
     ...optional('summary', clean(raw.subject)),
-    ...optional('year', date?.year),
-    ...optional('month', date?.month),
-    ...optional('day', date?.day),
+    ...optional('year', date ? String(date.year) : undefined),
+    ...optional('month', date ? String(date.month) : undefined),
+    ...optional('day', date ? String(date.day) : undefined),
     ...optional('languageISO', clean(raw.language)),
-    notes: PROVENANCE,
   };
 }
 

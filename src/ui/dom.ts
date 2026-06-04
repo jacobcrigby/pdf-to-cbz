@@ -5,6 +5,7 @@ export interface UiElements {
   readonly dropzone: HTMLElement;
   readonly fileInput: HTMLInputElement;
   readonly status: HTMLElement;
+  readonly metadata: HTMLElement;
 }
 
 /** Resolve the shell's elements, failing fast if the markup is missing one. */
@@ -13,6 +14,7 @@ export function getElements(root: Document = document): UiElements {
     dropzone: require(root, '#dropzone', HTMLElement),
     fileInput: require(root, '#file-input', HTMLInputElement),
     status: require(root, '#status', HTMLElement),
+    metadata: require(root, '#metadata', HTMLElement),
   };
 }
 
