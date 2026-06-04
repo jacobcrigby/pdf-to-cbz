@@ -7,7 +7,7 @@
 const DEFAULT_TARGET_LONG_EDGE_PX = 1600;
 const DEFAULT_MAX_SCALE = 2.0;
 const DEFAULT_ENCODE_QUALITY = 0.8;
-const DEFAULT_NATIVE_MAX_LONG_EDGE_PX = 4000;
+const DEFAULT_NATIVE_MAX_LONG_EDGE_PX = 2600;
 
 function positiveOr(raw: string | undefined, fallback: number): number {
   const value = Number(raw);

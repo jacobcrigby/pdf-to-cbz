@@ -204,6 +204,9 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
             canvasContext: context as unknown as CanvasRenderingContext2D,
             viewport,
           }).promise;
+          // Release the page's decoded images and operator list so memory does
+          // not grow across a long document.
+          page.cleanup();
         },
       };
     },

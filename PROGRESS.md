@@ -62,7 +62,10 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   on `deviceMemory` to bound peak memory
 - Delivery stays Blob+anchor (FSA deferred); compression stays STORE (adaptive DEFLATE
   deferred) — both by decision, to prioritize the pool
-- Pending: manual e2e — convert a multi-page PDF, confirm correct order + faster on desktop
+- Memory discipline: `page.cleanup()` after each render (pdf.js caches grow otherwise);
+  pool budget 4 GiB/worker (`deviceMemory` over-reports a mobile tab's real limit); native-res
+  cap defaults to 2600px. Tune via `VITE_NATIVE_MAX_LONG_EDGE_PX` if needed.
+- Pending: manual e2e — convert a multi-page PDF on mobile + desktop without OOM
 
 ### Phase 6 — Metadata entry & overrides
 - [ ] Pre-conversion form (spec §5.4), pre-filled + locally persisted
