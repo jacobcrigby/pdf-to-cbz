@@ -68,7 +68,10 @@ async function drive(
 
   try {
     const buffer = await file.arrayBuffer();
-    const pool = await openPool(buffer, poolSize(capabilities), { encodeType, ext });
+    const pool = await openPool(buffer, poolSize(capabilities, buffer.byteLength), {
+      encodeType,
+      ext,
+    });
     try {
       const { pageCount } = pool;
       let sink: ArchiveSink;

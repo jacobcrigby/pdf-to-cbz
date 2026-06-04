@@ -63,10 +63,16 @@ stream back throughout. See spec §3 and §7.
   target. True JPEG byte-passthrough is deferred — pdf.js doesn't expose original image bytes
   (see spec §3.2 v1 note).
 - **Phase 5 — Capability-sized pool.** `render.worker.ts` (renders one page on request) +
-  `worker/pool.ts` driving N workers, sized by `core/pool-size.ts`; `core/page-scheduler.ts`
-  gives reorder-window backpressure + ordered completion. Zip/ComicInfo/download moved to the
-  controller. Each worker holds its own PDF copy (no SharedArrayBuffer on a static host).
-  Adaptive DEFLATE and FSA delivery deferred (prioritized the pool); delivery stays Blob+anchor.
+  `worker/pool.ts` driving N workers, sized by `core/pool-size.ts` (from cores/memory and the
+  PDF size, since each worker copies the PDF — no SharedArrayBuffer on a static host);
+  `core/page-scheduler.ts` gives reorder-window backpressure + ordered completion.
+  Zip/ComicInfo/download run on the controller, with File System Access streaming delivery when
+  available (else Blob+anchor). `page.cleanup()` bounds per-page memory. Adaptive DEFLATE
+  deferred (STORE).
+- **Phase 5b — Per-worker PDF slicing (planned).** Split the source into N sub-PDFs with
+  `pdf-lib` so each worker loads only its page range, cutting steady-state memory for very large
+  PDFs. Weigh: dependency size, up-front main-thread parse/spike, double-parse, and static
+  partitioning vs the current dynamic scheduler.
 - **Phase 6 — Metadata entry & overrides.** Pre-conversion form (spec §5.4), pre-filled +
   persisted locally.
 - **Phase 7 — UX hardening.** Progress, cancel, warn-and-continue summary, encrypted/corrupt

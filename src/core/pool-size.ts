@@ -11,12 +11,17 @@ export const POOL_MAX = 4;
 // the OS starts killing processes.
 const GIB_PER_WORKER = 4;
 
-/** Render-worker count for the measured runtime, clamped to [1, POOL_MAX]. */
-export function poolSize(capabilities: {
-  hardwareConcurrency: number;
-  deviceMemory: number;
-}): number {
+// Total budget for the per-worker PDF copies. Since the source is duplicated once
+// per worker, a large PDF must reduce the worker count to keep copies bounded.
+const PDF_COPY_BUDGET_BYTES = 256 * 1024 * 1024;
+
+/** Render-worker count for the measured runtime and PDF, clamped to [1, POOL_MAX]. */
+export function poolSize(
+  capabilities: { hardwareConcurrency: number; deviceMemory: number },
+  pdfBytes: number,
+): number {
   const byCores = Math.floor(capabilities.hardwareConcurrency);
   const byMemory = Math.floor(capabilities.deviceMemory / GIB_PER_WORKER);
-  return Math.max(1, Math.min(POOL_MAX, byCores, byMemory));
+  const byPdf = pdfBytes > 0 ? Math.floor(PDF_COPY_BUDGET_BYTES / pdfBytes) : POOL_MAX;
+  return Math.max(1, Math.min(POOL_MAX, byCores, byMemory, byPdf));
 }

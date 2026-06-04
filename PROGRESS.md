@@ -66,7 +66,15 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - Memory discipline: `page.cleanup()` after each render (pdf.js caches grow otherwise);
   pool budget 4 GiB/worker (`deviceMemory` over-reports a mobile tab's real limit); native-res
   cap defaults to 2600px. Tune via `VITE_NATIVE_MAX_LONG_EDGE_PX` if needed.
-- Pending: manual e2e — convert a multi-page PDF on mobile + desktop without OOM
+- `poolSize` also shrinks for a large PDF (each worker holds its own copy; total copies bounded
+  by a 256 MiB budget) — verified working on Android (Pixel 9 Pro XL).
+
+### Future — per-worker PDF slicing (planned, not started)
+Each render worker copies the whole PDF (no SharedArrayBuffer on a static host). A later phase
+can split the source into N sub-PDFs (via `pdf-lib`) so each worker loads only its page range,
+cutting steady-state memory for very large PDFs. Tradeoffs to weigh then: ~300 KB dependency,
+an up-front main-thread parse/spike, double-parsing, and static partitioning (load imbalance)
+replacing the current dynamic work-stealing scheduler.
 
 ### Phase 6 — Metadata entry & overrides
 - [ ] Pre-conversion form (spec §5.4), pre-filled + locally persisted
