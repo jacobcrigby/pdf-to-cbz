@@ -5,8 +5,8 @@ Single source of truth for **current state of work**, updated and committed with
 change so any agent can resume from the repo alone. See `docs/plan/implementation.md` for
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
-**Active branch:** `phase-1-scaffold`
-**Current phase:** Phase 1 — Scaffold
+**Active branch:** `claude/festive-clarke-8Jl4K`
+**Current phase:** Phase 1 — Scaffold + deploy runner
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -24,10 +24,13 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - [x] Adopt `docs/conventions/clean-documentation.md` + require it for all agents in `AGENTS.md`
 - [x] Squash-merge to `main` + push
 
-### Phase 1 — Scaffold
-- [ ] Vite + TS strict, `index.html`, minimal UI shell, SPDX headers
-- [ ] `runtime-capabilities.ts` stub + unit tests
-- [ ] `npm` scripts: `dev` / `build` / `preview` / `test`
+### Phase 1 — Scaffold + deploy runner
+- [x] Vite + TS strict, `index.html`, minimal UI shell, SPDX headers
+- [x] `runtime-capabilities.ts` stub + unit tests
+- [x] `npm` scripts: `dev` / `build` / `preview` / `test`
+- [x] ESLint + Prettier config
+- [x] GitHub Actions CI + GitHub Pages deploy workflows
+  - One-time manual step: repo Settings > Pages > Source = "GitHub Actions"
 
 ### Phase 2 — Render path end-to-end
 - [ ] Bundled pdf.js in `convert.worker`; render-all → fflate zip → download
@@ -49,4 +52,4 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - [ ] Progress, cancel, warn-and-continue summary, encrypted/corrupt handling, size warning
 
 ### Phase 8 — Fast-follow (separate sign-off)
-- [ ] PWA (manifest + service worker); GitHub Pages deploy
+- [ ] PWA (manifest + service worker) on the Pages hosting from Phase 1

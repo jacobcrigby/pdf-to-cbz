@@ -211,3 +211,25 @@ all adaptive behavior. **No mobile/desktop branching** — only measured capabil
    memory; on a high-capability run, parallelism and light compression engage.
 8. Cancellation leaves no partial download; a bad page produces a warning, not a crash.
 9. `npm run build` is clean and TypeScript strict passes; unit + integration tests green.
+10. The GitHub Actions deploy workflow publishes the built site to GitHub Pages, and the
+    CI workflow's lint/typecheck/test/build all pass in the runner.
+
+---
+
+## 10. Build & deployment
+
+The app is a static site **built with Vite** to a `dist/` directory and **hosted on GitHub
+Pages** — there is no server. It is **not run from a developer's machine in production**, so
+the build must succeed in the GitHub Actions runner, not only locally.
+
+- **CI runner.** A GitHub Actions workflow runs `lint`, `typecheck`, `test`, and `build` on
+  every pull request and push. A green build in the runner is the gate; "works on my machine"
+  is not sufficient.
+- **Deploy runner.** A GitHub Actions workflow builds and publishes `dist/` to GitHub Pages
+  (Pages source = "GitHub Actions"), on push to `main` and on manual dispatch. This pipeline
+  is established **early (Phase 1)**, so every change is continuously deployable from the
+  start rather than wiring deployment up at the end.
+- **Subpath base.** GitHub Pages serves a project site under `/<repo>/`, so the build uses a
+  relative base; asset URLs must not assume the domain root.
+- The PWA (manifest + service worker) is a separate fast-follow (Phase 8) layered on top of
+  this hosting.

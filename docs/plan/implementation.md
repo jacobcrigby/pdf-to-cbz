@@ -50,8 +50,10 @@ stream back throughout. See spec §3 and §7.
 
 - **Phase 0 — Spec, plan & handoff setup.** This spec/plan/`PROGRESS.md`; reconcile
   `AGENTS.md` + planning HTML; establish git + handoff conventions. *(in progress)*
-- **Phase 1 — Scaffold.** Vite + TS strict, `index.html`, minimal UI shell, SPDX headers,
-  `runtime-capabilities.ts` stub + tests, `npm` scripts.
+- **Phase 1 — Scaffold + deploy runner.** Vite + TS strict, `index.html`, minimal UI shell,
+  SPDX headers, `runtime-capabilities.ts` stub + tests, `npm` scripts, ESLint + Prettier, and
+  the **GitHub Actions CI + GitHub Pages deploy** workflows (build runs in the runner;
+  established early so every change is continuously deployable).
 - **Phase 2 — Render path end-to-end.** Bundled pdf.js; render every page to WebP → zip →
   download. First working CBZ.
 - **Phase 3 — Naming, ordering, metadata.** `naming.ts`, `comicinfo.ts`, `pdf-metadata.ts`;
@@ -64,8 +66,8 @@ stream back throughout. See spec §3 and §7.
   persisted locally.
 - **Phase 7 — UX hardening.** Progress, cancel, warn-and-continue summary, encrypted/corrupt
   handling, size/page-count warning.
-- **Phase 8 — Fast-follow (separate sign-off).** PWA (manifest + service worker) and GitHub
-  Pages deploy.
+- **Phase 8 — Fast-follow (separate sign-off).** PWA (manifest + service worker) layered on
+  the GitHub Pages hosting established in Phase 1.
 
 ## Verification
 
@@ -74,7 +76,8 @@ feature/resource combos and `comicinfo`/`naming` correctness. Integration (headl
 Playwright) drives a fixture PDF through the built app and asserts the `.cbz` contains the
 ordered images + `ComicInfo.xml`; run once forced high-capability and once forced low.
 Manual: open the `.cbz` in a real reader. Per phase: clean `npm run build`, TS strict, no
-runtime network requests. Full criteria in spec §9.
+runtime network requests. CI (GitHub Actions) runs lint/typecheck/test/build on every PR and
+push; the deploy workflow publishes `dist/` to GitHub Pages. Full criteria in spec §9–§10.
 
 ## Version control workflow
 

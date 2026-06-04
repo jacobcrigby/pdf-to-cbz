@@ -1,0 +1,74 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF → CBZ</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        box-sizing: border-box;
+      }
+      main {
+        width: 100%;
+        max-width: 32rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .dropzone {
+        display: block;
+        border: 2px dashed currentColor;
+        border-radius: 0.75rem;
+        padding: 3rem 1.5rem;
+        cursor: pointer;
+        opacity: 0.75;
+        transition: opacity 0.15s ease;
+      }
+      .dropzone:hover,
+      .dropzone:focus-visible,
+      .dropzone.dragging {
+        opacity: 1;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .status {
+        margin-top: 1rem;
+        min-height: 1.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PDF → CBZ</h1>
+      <label id="dropzone" class="dropzone" for="file-input">
+        Drop a PDF here, or click to choose
+      </label>
+      <input
+        id="file-input"
+        class="visually-hidden"
+        type="file"
+        accept="application/pdf"
+      />
+      <p id="status" class="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
