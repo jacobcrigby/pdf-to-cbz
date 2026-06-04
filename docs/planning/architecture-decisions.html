@@ -366,6 +366,30 @@
     </div>
   </section>
 
+  <!-- ════════════════ PHASE 2 IMPLEMENTATION DECISIONS ════════════════ -->
+  <section class="reveal" style="animation-delay:.11s">
+    <div class="assumptions" style="border-left-color:var(--green); margin-top:28px;">
+      <h3 style="color:var(--green)">Phase 2 implementation decisions · 2026-06-04</h3>
+      <ul>
+        <li><b>Render in a worker via OffscreenCanvas only.</b> Conversion runs in
+            <code>convert.worker</code> using <code>OffscreenCanvas</code>; a runtime without it
+            (or without module workers) gets a clean "not supported yet" message. The spec's
+            main-thread <code>&lt;canvas&gt;</code> fallback is deferred to a later phase — all
+            required targets support OffscreenCanvas; Mobile Safari is best-effort. Render/encode/
+            zip logic lives in standalone modules so the fallback is additive, not a rewrite.</li>
+        <li><b>pdf.js worker bundled as a first-party asset</b> (no CDN). Where a runtime can
+            spawn a nested worker it does; otherwise pdf.js imports the same bundled module on the
+            current thread. One bundled URL covers both; parallelism is a Phase 5 concern.</li>
+        <li><b>STORE compression</b> (<code>ZipPassThrough</code>) for Phase 2 — pages are already
+            compressed WebP/JPEG. Adaptive light DEFLATE arrives with the pool in Phase 5. Output
+            MIME <code>application/vnd.comicbook+zip</code>, delivered Blob + anchor.</li>
+        <li><b>Render constants are build-time configurable</b> via Vite env vars (defaults
+            <code>VITE_TARGET_LONG_EDGE_PX=1600</code>, <code>VITE_MAX_SCALE=2.0</code>,
+            <code>VITE_ENCODE_QUALITY=0.8</code>), resolved in <code>core/render-config.ts</code>.</li>
+      </ul>
+    </div>
+  </section>
+
   <!-- ════════════════ REQUIREMENTS ════════════════ -->
   <section>
     <div class="section-head reveal" style="animation-delay:.12s">
