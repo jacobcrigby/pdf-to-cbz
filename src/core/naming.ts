@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-export type PageExt = 'webp' | 'jpg';
+export type PageExt = 'webp' | 'jpg' | 'png';
 
 // Readers sort pages by filename, so names are zero-padded wide enough that
 // lexical order matches numeric (reading) order across the whole archive.

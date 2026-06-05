@@ -76,6 +76,11 @@ class NoFilterFactory {
 export interface PageAnalysis {
   readonly singleFullPageImage: boolean;
   readonly imageLongEdgePx?: number;
+  /** Pixel dimensions of the single painted image, for matching the source XObject. */
+  readonly imageWidthPx?: number;
+  readonly imageHeightPx?: number;
+  /** The image's placement matrix is axis-aligned and unflipped (no rotation/mirror). */
+  readonly imageUpright?: boolean;
 }
 
 export interface LoadedPage {
@@ -91,6 +96,26 @@ const { OPS } = pdfjsLib;
 
 // A single full-page image paints exactly one of these and nothing else.
 const IMAGE_PAINT_OPS = new Set<number>([OPS.paintImageXObject, OPS.paintInlineImageXObject]);
+
+// The 2×2 linear part [a, b, c, d] of a placement matrix; translation is irrelevant to
+// whether the image is rotated or flipped, so it is dropped.
+type Linear = readonly [number, number, number, number];
+const IDENTITY: Linear = [1, 0, 0, 1];
+
+// Concatenate matrix `m` onto the current `ctm` (PDF `cm` semantics), linear part only.
+function concat(m: Linear, ctm: Linear): Linear {
+  const [a1, b1, c1, d1] = m;
+  const [a2, b2, c2, d2] = ctm;
+  return [a1 * a2 + b1 * c2, a1 * b2 + b1 * d2, c1 * a2 + d1 * c2, c1 * b2 + d1 * d2];
+}
+
+// Upright means axis-aligned with positive scale: no rotation (b, c ≈ 0) and no mirror
+// (a, d > 0). Such a placement maps the image onto the page without reorienting it, so
+// its original bytes can be passed through unchanged.
+function isUpright([a, b, c, d]: Linear): boolean {
+  const eps = 1e-4 * Math.max(Math.abs(a), Math.abs(d), 1);
+  return a > 0 && d > 0 && Math.abs(b) <= eps && Math.abs(c) <= eps;
+}
 
 // Text, path, and mask/repeat-image operators mean the page is more than a plain image.
 const DISQUALIFYING_OPS = new Set<number>([
@@ -160,13 +185,28 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
           const { fnArray, argsArray } = await page.getOperatorList();
           let imagePaintCount = 0;
           let disqualifyingOpCount = 0;
-          let imageLongEdgePx: number | undefined;
+          let imageWidthPx: number | undefined;
+          let imageHeightPx: number | undefined;
+          let imageUpright: boolean | undefined;
+          // Track the current transform (with a save/restore stack) so the matrix in
+          // effect when the image is painted can be checked for rotation or mirroring.
+          let ctm: Linear = IDENTITY;
+          const stack: Linear[] = [];
           for (let i = 0; i < fnArray.length; i += 1) {
             const fn = fnArray[i];
             if (fn === undefined) {
               continue;
             }
-            if (IMAGE_PAINT_OPS.has(fn)) {
+            if (fn === OPS.save) {
+              stack.push(ctm);
+            } else if (fn === OPS.restore) {
+              ctm = stack.pop() ?? IDENTITY;
+            } else if (fn === OPS.transform) {
+              const args: unknown = argsArray[i];
+              if (Array.isArray(args) && args.length >= 4) {
+                ctm = concat([args[0], args[1], args[2], args[3]] as Linear, ctm);
+              }
+            } else if (IMAGE_PAINT_OPS.has(fn)) {
               imagePaintCount += 1;
               // paintImageXObject args are [objId, widthPx, heightPx].
               const args: unknown = argsArray[i];
@@ -175,8 +215,10 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
                 typeof args[1] === 'number' &&
                 typeof args[2] === 'number'
               ) {
-                imageLongEdgePx = Math.max(args[1], args[2]);
+                imageWidthPx = args[1];
+                imageHeightPx = args[2];
               }
+              imageUpright = isUpright(ctm);
             } else if (DISQUALIFYING_OPS.has(fn)) {
               disqualifyingOpCount += 1;
             }
@@ -185,9 +227,16 @@ export async function loadDocument(buffer: ArrayBuffer): Promise<LoadedDocument>
             imagePaintCount,
             disqualifyingOpCount,
           });
-          return singleFullPageImage && imageLongEdgePx !== undefined
-            ? { singleFullPageImage, imageLongEdgePx }
-            : { singleFullPageImage };
+          if (!singleFullPageImage || imageWidthPx === undefined || imageHeightPx === undefined) {
+            return { singleFullPageImage };
+          }
+          return {
+            singleFullPageImage,
+            imageLongEdgePx: Math.max(imageWidthPx, imageHeightPx),
+            imageWidthPx,
+            imageHeightPx,
+            imageUpright: imageUpright ?? false,
+          };
         },
         async render(canvas, scale) {
           const viewport = page.getViewport({ scale });

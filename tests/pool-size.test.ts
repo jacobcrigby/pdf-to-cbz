@@ -20,10 +20,11 @@ describe('poolSize', () => {
     expect(poolSize({ hardwareConcurrency: 16, deviceMemory: 32 }, SMALL)).toBe(POOL_MAX);
   });
 
-  it('shrinks the pool for a large PDF to bound total copies', () => {
+  it('shrinks the pool for a large PDF to bound total copies (two copies per worker)', () => {
     const ample = { hardwareConcurrency: 16, deviceMemory: 32 };
-    expect(poolSize(ample, 200 * 1024 * 1024)).toBe(1); // 256 MiB budget fits one copy
-    expect(poolSize(ample, 100 * 1024 * 1024)).toBe(2);
+    expect(poolSize(ample, 200 * 1024 * 1024)).toBe(1); // 256 MiB budget fits under one worker's pair
+    expect(poolSize(ample, 100 * 1024 * 1024)).toBe(1);
+    expect(poolSize(ample, 50 * 1024 * 1024)).toBe(2); // ~100 MiB of copies leaves room for two
   });
 
   it('never returns less than one', () => {

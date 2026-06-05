@@ -30,9 +30,10 @@ src/
   controller.ts           # orchestrates a job; talks to the worker
   core/                   # PURE (no DOM/worker) — unit tested
     types.ts  runtime-capabilities.ts  naming.ts  pdf-metadata.ts
-    comicinfo.ts  page-classifier.ts  scale.ts
+    comicinfo.ts  page-classifier.ts  scale.ts  extract-policy.ts
   pdf/pdfjs.ts            # bundled pdf.js: loadDocument, getDocMetadata, analyzePage,
-                          #   extractImageBytes, renderPageBitmap
+                          #   renderPageBitmap
+  pdf/extract.ts          # pdf-lib structure parse: recover a page image's original bytes
   zip/cbz.ts             # fflate streaming Zip (ZipPassThrough=STORE / ZipDeflate=light)
   worker/{convert.worker,render.worker,pool}.ts
 tests/                    # vitest unit tests for core/*
@@ -61,8 +62,13 @@ stream back throughout. See spec §3 and §7.
   ComicInfo.xml with page-0 FrontCover.
 - **Phase 4 — Hybrid (pragmatic).** `page-classifier` + page `analyze()` detect single
   full-page image pages and render them at native resolution; mixed pages use the ~1600px
-  target. True JPEG byte-passthrough is deferred — pdf.js doesn't expose original image bytes
-  (see spec §3.2 v1 note).
+  target.
+- **Phase 9 — Extract path (true passthrough).** `pdf/extract.ts` parses the PDF with
+  `pdf-lib` to recover a single-image page's original image XObject; `core/extract-policy.ts`
+  (pure, tested) decides passthrough (copy DCTDecode bytes → `.jpg`) vs lossless render
+  (lossless source → native-resolution PNG) vs render (everything else). The render worker
+  keeps a second copy of the source bytes for the parse; `pool-size.ts` counts two copies
+  per worker. Per-page extension threads worker → pool → controller → `naming.ts`.
 - **Phase 5 — Capability-sized pool.** `render.worker.ts` (renders one page on request) +
   `worker/pool.ts` driving N workers, sized by `core/pool-size.ts` (from cores/memory and the
   PDF size, since each worker copies the PDF — no SharedArrayBuffer on a static host);

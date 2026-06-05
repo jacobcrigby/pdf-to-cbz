@@ -6,8 +6,8 @@ Single source of truth for **current state of work**, updated and committed with
 change so any agent can resume from the repo alone. See `docs/plan/implementation.md` for
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
-**Active branch:** `main` (committing directly through v1)
-**Current phase:** Phase 8 — PWA (complete); v1 phases done
+**Active branch:** `claude/continue-previous-session-uGytV`
+**Current phase:** Phase 9 — Extract path (true JPEG passthrough + lossless PNG)
 
 ## How to resume
 
@@ -56,8 +56,8 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 - [x] `page-classifier` + page `analyze()`: single full-page image pages render at native
       resolution; mixed pages use the ~1600px target
-  - True JPEG byte-passthrough deferred — pdf.js doesn't expose original image bytes
-    (see spec §3.2 v1 note); native-res cap is `VITE_NATIVE_MAX_LONG_EDGE_PX` (default 4000)
+  - native-res cap is `VITE_NATIVE_MAX_LONG_EDGE_PX` (default 2600); true byte-passthrough
+    landed later in Phase 9
   - Pending: manual e2e — confirm a scanned/image PDF comes out sharper than the 1600px cap
 
 ### Phase 5 — Capability-sized pool
@@ -114,6 +114,34 @@ replacing the current dynamic work-stealing scheduler.
     file / high page count, with an extra memory caution when delivery isn't streamed to disk;
     fed by the pool's reported page count
   - Pure helpers unit-tested; cancel/progress/warning wiring is manual e2e
+
+### Phase 9 — Extract path (true JPEG passthrough + lossless PNG)
+
+- [x] `pdf/extract.ts` parses the PDF independently with `pdf-lib` (added dependency) to
+      recover a single-image page's image XObject and its raw stored bytes
+- [x] `core/extract-policy.ts` (pure, unit-tested) classifies the image into one of three
+      modes from a neutral descriptor (codec/colorspace/masks/decode/orientation):
+  - **passthrough** → copy the original `DCTDecode` bytes verbatim into `NNNN.jpg`
+    (no decode/re-encode, full original resolution, bypassing the native-res cap)
+  - **lossless** → a lossless source (Flate/LZW/RunLength/CCITT/JBIG2/raw) renders at native
+    resolution and encodes PNG (`NNNN.png`) so 1-bit B&W scans / lossless rasters stay crisp
+  - **render** → everything else keeps the WebP/JPEG render path unchanged
+- [x] `pdf/pdfjs.ts` `analyze()` now also reports the painted image's pixel size (to match
+      the XObject) and whether its placement matrix is upright (no rotation/mirror)
+- [x] Per-page extension threads worker → pool (`onPage(index, bytes, ext)`) → controller →
+      `naming.ts` (`PageExt` gains `png`); mixed extensions coexist in one archive
+- [x] Each render worker keeps a second copy of the source bytes for the parse (pdf.js may
+      detach the original); `pool-size.ts` counts **two** copies per worker in its budget
+- [x] `VITE_EXTRACT_MAX_LONG_EDGE_PX` (default unbounded) optionally caps passthrough size,
+      trading fidelity for smaller files
+- [x] Tests: `extract-policy.test.ts` (tier decisions), `extract.test.ts` (byte-identical
+      JPEG passthrough + rotation gating via a real pdf-lib-built PDF); `naming`/`pool-size`
+      updated. `npm test`/`typecheck`/`lint`/`build` green
+- Pending: manual e2e — convert a scanned JPEG PDF and confirm `.cbz` entries are byte-equal
+  to the source images (`pdfimages -j`); a B&W/CCITT manga PDF yields crisp `.png`; a
+  vector PDF yields `.webp`; open each in a real reader (order/cover/orientation)
+- Future: run a lossless PNG optimizer (PNGcrush-style, e.g. an `oxipng`/zopflipng WASM
+  module bundled first-party) over the Tier-B PNGs to shrink them with no quality loss
 
 ### Phase 8 — Fast-follow (separate sign-off)
 

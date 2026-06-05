@@ -36,3 +36,12 @@ export const NATIVE_MAX_LONG_EDGE_PX = positiveOr(
   import.meta.env.VITE_NATIVE_MAX_LONG_EDGE_PX,
   DEFAULT_NATIVE_MAX_LONG_EDGE_PX,
 );
+
+// Upper bound on the long edge for lossless JPEG byte-passthrough. Passing original
+// bytes through preserves full resolution (no native cap), so this defaults to
+// unbounded; set it to trade some fidelity for smaller files (a larger image then
+// renders, subject to NATIVE_MAX_LONG_EDGE_PX, instead of passing through).
+export const EXTRACT_MAX_LONG_EDGE_PX = positiveOr(
+  import.meta.env.VITE_EXTRACT_MAX_LONG_EDGE_PX,
+  Number.POSITIVE_INFINITY,
+);

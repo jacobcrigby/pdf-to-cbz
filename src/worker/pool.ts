@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { createPageScheduler } from '../core/page-scheduler';
+import type { PageExt } from '../core/naming';
 import type { RawPdfMetadata } from '../core/pdf-metadata';
 import type { RenderRequest, RenderResponse } from '../core/types';
 
 export interface RunHandlers {
-  /** A rendered page, delivered in reading order. */
-  onPage(index: number, bytes: Uint8Array<ArrayBuffer>): void;
+  /** A finished page (rendered or extracted), delivered in reading order. */
+  onPage(index: number, bytes: Uint8Array<ArrayBuffer>, ext: PageExt): void;
   /** A page that could not be rendered and was skipped, in reading order. */
   onSkip(index: number): void;
   /** Settled-page count out of the total, for progress. */
@@ -117,7 +118,7 @@ function drivePool(
   return new Promise<void>((resolve, reject) => {
     const window = Math.max(1, workers.length * WINDOW_PER_WORKER);
     const scheduler = createPageScheduler(pageCount, window);
-    const pageBytes = new Map<number, Uint8Array<ArrayBuffer>>();
+    const pageData = new Map<number, { bytes: Uint8Array<ArrayBuffer>; ext: PageExt }>();
     const idle: Worker[] = [...workers];
     let settledCount = 0;
     let stopped = false;
@@ -159,15 +160,15 @@ function drivePool(
         return;
       }
       if (message.type === 'rendered') {
-        pageBytes.set(message.index, message.bytes);
+        pageData.set(message.index, { bytes: message.bytes, ext: message.ext });
       } else if (message.type !== 'render-error') {
         return;
       }
       for (const page of scheduler.settle(message.index, message.type === 'rendered')) {
-        const bytes = pageBytes.get(page.index);
-        pageBytes.delete(page.index);
-        if (page.ok && bytes) {
-          handlers.onPage(page.index, bytes);
+        const data = pageData.get(page.index);
+        pageData.delete(page.index);
+        if (page.ok && data) {
+          handlers.onPage(page.index, data.bytes, data.ext);
         } else {
           handlers.onSkip(page.index);
         }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { buildComicInfoXml } from './core/comicinfo';
-import { padPageName, toOutputFilename, type PageExt } from './core/naming';
+import { padPageName, toOutputFilename } from './core/naming';
 import { errorMessage } from './core/pdf-errors';
 import type { ComicMetadata } from './core/pdf-metadata';
 import { createCbzWriter, type ArchiveSink } from './zip/cbz';
@@ -19,7 +19,6 @@ export interface ConversionInput {
   /** The render pool opened when the file was selected; consumed and terminated here. */
   readonly pool: RenderPool;
   readonly file: File;
-  readonly ext: PageExt;
   readonly fileSystemAccess: boolean;
 }
 
@@ -52,7 +51,7 @@ async function drive(
   handlers: ConversionHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const { pool, file, ext, fileSystemAccess } = input;
+  const { pool, file, fileSystemAccess } = input;
   const filename = toOutputFilename(file.name);
 
   try {
@@ -85,8 +84,9 @@ async function drive(
 
       await pool.run(
         {
-          // Pages arrive in reading order, so written-index naming stays contiguous.
-          onPage(_index, bytes) {
+          // Pages arrive in reading order, so written-index naming stays contiguous. The
+          // extension is per page: extracted JPEG/PNG and rendered WebP/JPEG can coexist.
+          onPage(_index, bytes, ext) {
             writer.addStored(padPageName(written, pageCount, ext), bytes);
             written += 1;
           },

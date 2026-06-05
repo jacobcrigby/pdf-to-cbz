@@ -51,24 +51,35 @@ quality, DPI, page range) beyond the single quality default; server features of 
 
 ### 3.2 Conversion (hybrid engine)
 
-- **FR-4** For each page, decide **extract** vs **render**:
-  - **Extract** when the page consists of a single full-page image whose original bytes
-    are cleanly recoverable — in v1 this means **JPEG/DCTDecode passthrough**.
-  - **Render** otherwise (vector/text pages, multi-image pages, or non-JPEG codecs whose
-    safe extraction isn't guaranteed).
+- **FR-4** For each page, decide **extract** vs **render**. A page is a candidate when it
+  is a single full-page image (one image painted, nothing else drawn); its embedded image
+  is then inspected (via independent PDF stream parsing — see §3.2 note) and handled as:
+  - **Passthrough (extract)** when the image is a **JPEG/DCTDecode** whose original bytes
+    are cleanly recoverable (single filter, RGB/gray, 8-bit, no mask/transparency, identity
+    decode, upright and unrotated) — copy the original bytes verbatim, full resolution.
+  - **Lossless render** when the image's source codec is **lossless**
+    (Flate/LZW/RunLength/CCITT/JBIG2/raw) — rasterize at native resolution and encode **PNG**
+    so a lossless source (including 1-bit B&W scans) stays lossless.
+  - **Render** otherwise (vector/text pages, multi-image pages, lossy non-JPEG codecs such
+    as JPEG 2000, or JPEGs ineligible for passthrough).
 - **FR-5** Rendered pages are encoded to **WebP**, with **JPEG fallback** when WebP
-  encoding is unavailable in the runtime. Extracted pages keep their original bytes and
-  file extension.
+  encoding is unavailable in the runtime; lossless-render pages use **PNG**. Passthrough
+  pages keep their original bytes and `.jpg` extension.
 - **FR-6** Default render resolution targets **~1600px on the long edge** (see §6 for the
   scale formula). This is a v1 constant; advanced controls are out of scope.
 - **FR-7** Pages appear in the archive in source page order (§5.1).
 
-> **v1 implementation note (hybrid):** pdf.js does not expose a page image's original
-> encoded bytes through its public API, so true DCTDecode byte-passthrough (FR-4 _extract_)
-> is **deferred**. Instead, a page detected as a single full-page image is **rendered at the
-> image's native resolution** (bypassing the ~1600px target of FR-6, bounded by a configurable
-> cap) so scans stay sharp; all pages are still encoded per FR-5. Byte-identical passthrough
-> can be revisited later via independent PDF stream parsing.
+> **Implementation note (hybrid engine):** pdf.js does not expose a page image's original
+> encoded bytes through its public API, so the extract path parses the PDF structure
+> **independently** with `pdf-lib`: for a page pdf.js classifies as a single full-page
+> image, the matching image XObject is located (by pixel size) and its dictionary inspected
+> to choose passthrough / lossless-render / render per FR-4. Passthrough copies the raw
+> `DCTDecode` stream bytes (no decode, no re-encode, full original resolution — bypassing the
+> ~1600px target of FR-6 and the native-resolution cap). Each render worker keeps a second
+> copy of the source bytes for this parse, so the pool's per-PDF memory budget counts two
+> copies per worker (§7.2). A single full-page image whose source is lossy but not
+> passthrough-eligible still renders at the image's native resolution (bounded by a
+> configurable cap) so scans stay sharp.
 
 ### 3.3 Archive & metadata
 
@@ -129,8 +140,9 @@ quality, DPI, page range) beyond the single quality default; server features of 
 - Entries named `NNNN.<ext>`, zero-padded to a width of `max(4, digits(pageCount))`,
   starting at `0001`. Numeric order equals reading order (preserves RTL when the source
   page order is RTL).
-- `<ext>` is `webp`/`jpg` for rendered pages, or the original extension for extracted
-  pages (e.g. `jpg`).
+- `<ext>` is `webp`/`jpg` for rendered pages, `png` for lossless-render pages, or the
+  original extension for passthrough pages (`jpg`). Extensions vary per page within one
+  archive; readers sort by name regardless of extension.
 
 ### 5.2 Output filename
 
@@ -219,8 +231,9 @@ all adaptive behavior. **No mobile/desktop branching** — only measured capabil
 - Encrypted/password PDFs: prompt or clean failure (FR-3).
 - Corrupt/malformed PDFs: report and abort the job with a clear message; identify the
   failing page where possible.
-- Exotic embedded codecs (JBIG2/JPEG2000/CCITT): extraction is not guaranteed → render
-  fallback (FR-4).
+- Exotic embedded codecs: byte passthrough is only attempted for DCTDecode JPEG. Lossless
+  codecs (CCITT/JBIG2/Flate/LZW/RunLength) on a single-image page render to PNG (lossless);
+  JPEG 2000 and other lossy non-JPEG codecs render to WebP/JPEG (FR-4).
 - CMYK/colorspace & transparency: flatten onto white; rely on pdf.js color handling.
 - OffscreenCanvas absent: main-thread canvas fallback (§7.4).
 - Per-page decode/encode failure: warn-and-continue (FR-14).

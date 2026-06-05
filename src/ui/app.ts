@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { startConversion } from '../controller';
 import { inputWarning } from '../core/input-warning';
-import { stripPdfExtension, type PageExt } from '../core/naming';
+import { stripPdfExtension } from '../core/naming';
 import { toComicMetadata, type ComicMetadata } from '../core/pdf-metadata';
 import { poolSize } from '../core/pool-size';
 import type { RuntimeCapabilities } from '../core/runtime-capabilities';
@@ -20,7 +20,6 @@ import {
 interface OpenSession {
   readonly pool: RenderPool;
   readonly file: File;
-  readonly ext: PageExt;
 }
 
 /** Wire drop/select events so a chosen PDF opens the metadata form, then converts. */
@@ -69,7 +68,6 @@ export function initApp(elements: UiElements, capabilities: RuntimeCapabilities)
     setStatus(elements.status, 'Reading metadata…');
     try {
       const buffer = await file.arrayBuffer();
-      const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
       const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
       const pool = await openPool(buffer, poolSize(capabilities, buffer.byteLength), {
         encodeType,
@@ -79,7 +77,7 @@ export function initApp(elements: UiElements, capabilities: RuntimeCapabilities)
         pool.terminate();
         return;
       }
-      session = { pool, file, ext };
+      session = { pool, file };
 
       const derived = toComicMetadata(pool.metadata ?? {}, {
         fallbackTitle: stripPdfExtension(file.name),
@@ -170,7 +168,6 @@ function convert(
     {
       pool: session.pool,
       file: session.file,
-      ext: session.ext,
       fileSystemAccess: capabilities.fileSystemAccess,
     },
     metadata,
