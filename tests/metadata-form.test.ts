@@ -73,6 +73,8 @@ describe('publication date <-> ComicInfo parts', () => {
 });
 
 describe('form rendering and round-trip', () => {
+  beforeEach(() => localStorage.clear());
+
   it('renders a date picker and selects, prefills, and reads values back', () => {
     const container = document.createElement('section');
     let converted: ComicMetadata | undefined;
@@ -106,7 +108,7 @@ describe('form rendering and round-trip', () => {
     expect(converted?.manga).toBe('YesAndRightToLeft');
   });
 
-  it('fans the single Artist field out to every art-credit role', () => {
+  it('merges writer and artist by default, fanning out to every credit role', () => {
     const container = document.createElement('section');
     let converted: ComicMetadata | undefined;
     const form = createMetadataForm(container, {
@@ -114,20 +116,61 @@ describe('form rendering and round-trip', () => {
       onCancel: () => undefined,
     });
 
-    const artist = container.querySelector<HTMLInputElement>('#meta-artist');
-    expect(artist?.tagName).toBe('INPUT');
+    const combined = container.querySelector<HTMLInputElement>('#meta-writer-artist');
+    const expanded = container.querySelector<HTMLDivElement>('.credits-expanded');
+    expect(combined?.tagName).toBe('INPUT');
 
-    // Last-used persisted each art role under its own key; the one input prefills from them.
-    form.show({ penciller: 'Sam Zine', inker: 'Sam Zine', coverArtist: 'Sam Zine' });
-    expect(artist?.value).toBe('Sam Zine');
+    // PDF gives only the writer; the merged field shows it and stays collapsed by default.
+    form.show({ writer: 'Sam Zine' });
+    expect(combined?.value).toBe('Sam Zine');
+    expect(combined?.closest<HTMLElement>('.metadata-row')?.hidden).toBe(false);
+    expect(expanded?.hidden).toBe(true);
 
-    artist!.value = 'Alex Maker';
+    combined!.value = 'Alex Maker';
     container.querySelector('form')?.dispatchEvent(new Event('submit'));
+    expect(converted?.writer).toBe('Alex Maker');
     expect(converted?.penciller).toBe('Alex Maker');
     expect(converted?.inker).toBe('Alex Maker');
     expect(converted?.colorist).toBe('Alex Maker');
     expect(converted?.letterer).toBe('Alex Maker');
     expect(converted?.coverArtist).toBe('Alex Maker');
+  });
+
+  it('separates credits via the toggle and reads each role independently', () => {
+    const container = document.createElement('section');
+    let converted: ComicMetadata | undefined;
+    const form = createMetadataForm(container, {
+      onConvert: (metadata) => (converted = metadata),
+      onCancel: () => undefined,
+    });
+    form.show({});
+
+    const toggle = container.querySelector<HTMLInputElement>('#meta-separate-credits');
+    toggle!.checked = true;
+    toggle!.dispatchEvent(new Event('change'));
+
+    container.querySelector<HTMLInputElement>('#meta-writer')!.value = 'A Writer';
+    container.querySelector<HTMLInputElement>('#meta-colorist')!.value = 'A Colorist';
+    container.querySelector('form')?.dispatchEvent(new Event('submit'));
+    expect(converted?.writer).toBe('A Writer');
+    expect(converted?.colorist).toBe('A Colorist');
+    expect(converted?.penciller).toBeUndefined();
+  });
+
+  it('opens with credits separated when prefilled values differ', () => {
+    const container = document.createElement('section');
+    const form = createMetadataForm(container, {
+      onConvert: () => undefined,
+      onCancel: () => undefined,
+    });
+
+    form.show({ writer: 'The Writer', penciller: 'The Artist' });
+    const combined = container.querySelector<HTMLInputElement>('#meta-writer-artist');
+    const writer = container.querySelector<HTMLInputElement>('#meta-writer');
+    const expanded = container.querySelector<HTMLDivElement>('.credits-expanded');
+    expect(combined?.closest<HTMLElement>('.metadata-row')?.hidden).toBe(true);
+    expect(expanded?.hidden).toBe(false);
+    expect(writer?.value).toBe('The Writer');
   });
 
   it('shows a language by name and stores its ISO code', () => {

@@ -158,14 +158,16 @@ Web, LanguageISO, AgeRating, and reading direction (`Manga` =
 overrides.
 
 **Presentation (tuned for self-published/zine use):** fields are ordered by importance with
-the creator credits near the top. Because one person usually does all the art on a zine, the
-visual-art roles (Penciller, Inker, Colorist, Letterer, CoverArtist) are entered through a
-single **Artist** input that writes the same name to each; **Writer** and **Editor** stay
-separate. To keep entry easy, the publication date is a date picker (mapping to
-`Year`/`Month`/`Day`), `Language` is chosen by name from a list of common languages (storing
-the ISO code, with an unlisted prefilled code preserved), and AgeRating and reading direction
-are dropdowns of their valid enum values. The output `ComicInfo.xml` still carries every
-field above.
+the creator credits near the top, and the Convert/Cancel actions sit above the fields. Because
+one person usually writes and draws a zine, the credits default to a single **Writer & artist**
+field that fills Writer and every art role (Penciller, Inker, Colorist, Letterer, CoverArtist)
+with one name. A **Separate art credits** toggle expands them into per-role fields (Writer plus
+each art role); the toggle choice is remembered, and a prefill whose credits differ opens
+already separated so no distinction is lost. **Editor** is always its own field. To keep entry
+easy, the publication date is a date picker (mapping to `Year`/`Month`/`Day`), `Language` is
+chosen by name from a list of common languages (storing the ISO code, with an unlisted
+prefilled code preserved), and AgeRating and reading direction are dropdowns of their valid
+enum values. The output `ComicInfo.xml` still carries every field above.
 
 ---
 

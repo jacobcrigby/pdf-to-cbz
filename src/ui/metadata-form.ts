@@ -9,9 +9,9 @@ interface SelectOption {
   readonly label: string;
 }
 
-// A form control. Most map to a single ComicMetadata key. `multitext` writes one value
-// to several keys at once (e.g. a zine's sole artist fills every art-credit role); `date`
-// spans the year/month/day trio so it can render as one native date picker.
+// A form control. Most map to a single ComicMetadata key. `date` spans the year/month/day
+// trio so it renders as one native date picker; `credits` is the collapsible writer/artist
+// block (see CREDIT_KEYS).
 type FieldDef =
   | {
       readonly kind: 'text' | 'number' | 'url' | 'textarea';
@@ -29,19 +29,12 @@ type FieldDef =
       readonly persist: boolean;
     }
   | {
-      readonly kind: 'multitext';
-      readonly keys: readonly FieldKey[];
-      readonly label: string;
-      readonly placeholder?: string;
-      readonly hint?: string;
-      readonly persist: boolean;
-    }
-  | {
       readonly kind: 'date';
       readonly keys: readonly FieldKey[];
       readonly label: string;
       readonly persist: boolean;
-    };
+    }
+  | { readonly kind: 'credits' };
 
 // Values are the ComicInfo `Manga` enum; labels read plainly for the user.
 const READING_DIRECTION: readonly SelectOption[] = [
@@ -71,11 +64,12 @@ const AGE_RATINGS: readonly SelectOption[] = [
 ].map((value) => ({ value, label: value === '' ? 'Unspecified' : value }));
 
 // Common languages by name; the stored value is the ISO 639-1 code most readers expect.
-// English leads (the primary audience), then alphabetical. An unlisted prefilled code is
-// added on the fly in `show`, so nothing is lost.
+// English then Japanese lead (the primary audiences), then alphabetical. An unlisted
+// prefilled code is added on the fly in `show`, so nothing is lost.
 const LANGUAGES: readonly SelectOption[] = [
   { value: '', label: 'Unspecified' },
   { value: 'en', label: 'English' },
+  { value: 'ja', label: 'Japanese' },
   { value: 'ar', label: 'Arabic' },
   { value: 'zh', label: 'Chinese' },
   { value: 'cs', label: 'Czech' },
@@ -89,7 +83,6 @@ const LANGUAGES: readonly SelectOption[] = [
   { value: 'hi', label: 'Hindi' },
   { value: 'id', label: 'Indonesian' },
   { value: 'it', label: 'Italian' },
-  { value: 'ja', label: 'Japanese' },
   { value: 'ko', label: 'Korean' },
   { value: 'no', label: 'Norwegian' },
   { value: 'pl', label: 'Polish' },
@@ -103,27 +96,22 @@ const LANGUAGES: readonly SelectOption[] = [
   { value: 'vi', label: 'Vietnamese' },
 ];
 
-// Visual-art roles a single person usually fills on a self-published comic.
-const ART_ROLES: readonly FieldKey[] = [
-  'penciller',
-  'inker',
-  'colorist',
-  'letterer',
-  'coverArtist',
+// The visual-art roles one person usually fills on a self-published comic, and the full
+// credit set (writer + art) the collapsed "Writer & artist" field drives at once.
+const ART_ROLE_FIELDS: readonly { readonly key: FieldKey; readonly label: string }[] = [
+  { key: 'penciller', label: 'Penciller' },
+  { key: 'inker', label: 'Inker' },
+  { key: 'colorist', label: 'Colorist' },
+  { key: 'letterer', label: 'Letterer' },
+  { key: 'coverArtist', label: 'Cover artist' },
 ];
+const CREDIT_KEYS: readonly FieldKey[] = ['writer', ...ART_ROLE_FIELDS.map((f) => f.key)];
 
 // Ordered by importance for the zine / self-published use case: identity and creators
 // first, then the story, then categorization, publishing, and finally niche fields.
 const FIELDS: readonly FieldDef[] = [
   { key: 'title', label: 'Title', kind: 'text', persist: false },
-  { key: 'writer', label: 'Writer', kind: 'text', persist: true },
-  {
-    kind: 'multitext',
-    keys: ART_ROLES,
-    label: 'Artist',
-    hint: 'Sets penciller, inker, colorist, letterer, and cover artist to one name.',
-    persist: true,
-  },
+  { kind: 'credits' },
   { key: 'series', label: 'Series', kind: 'text', persist: true },
   { key: 'number', label: 'Number', kind: 'text', placeholder: 'e.g. 1', persist: false },
   { key: 'summary', label: 'Summary', kind: 'textarea', persist: false },
@@ -147,15 +135,20 @@ const FIELDS: readonly FieldDef[] = [
 ];
 
 const STORAGE_KEY = 'pdf-to-cbz:last-metadata';
-
-/** The metadata keys a control owns (one for most, several for `multitext`/`date`). */
-function defKeys(def: FieldDef): readonly FieldKey[] {
-  return def.kind === 'multitext' || def.kind === 'date' ? def.keys : [def.key];
-}
+const SEPARATE_CREDITS_KEY = 'pdf-to-cbz:separate-credits';
 
 // Flatten the controls to the metadata keys they cover, with each key's persistence.
+// Credit keys (writer + art roles) always carry over.
 function keyPersistPairs(): readonly { key: FieldKey; persist: boolean }[] {
-  return FIELDS.flatMap((def) => defKeys(def).map((key) => ({ key, persist: def.persist })));
+  return FIELDS.flatMap((def) => {
+    if (def.kind === 'credits') {
+      return CREDIT_KEYS.map((key) => ({ key, persist: true }));
+    }
+    if (def.kind === 'date') {
+      return def.keys.map((key) => ({ key, persist: def.persist }));
+    }
+    return [{ key: def.key, persist: def.persist }];
+  });
 }
 
 /** Pre-fill value per field: the PDF-derived value wins, else the last-used one. */
@@ -222,6 +215,18 @@ export function dateValueToParts(value: string): DateParts | undefined {
   return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
 }
 
+/**
+ * Whether the credit values can be merged into the single "Writer & artist" field without
+ * losing a distinction: true when every set credit shares one name (so the collapsed view
+ * is safe), false when they differ (so the form opens with art credits separated).
+ */
+export function creditsUniform(prefill: ComicMetadata): boolean {
+  const present = CREDIT_KEYS.map((key) => prefill[key]).filter(
+    (value): value is string => !!value,
+  );
+  return present.length === 0 || present.every((value) => value === present[0]);
+}
+
 type Field = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 export interface MetadataForm {
@@ -235,8 +240,13 @@ export interface MetadataFormHandlers {
 }
 
 interface Control {
-  readonly def: FieldDef;
+  readonly def: Exclude<FieldDef, { kind: 'credits' }>;
   readonly el: Field;
+}
+
+interface CreditsBlock {
+  apply(prefill: ComicMetadata): void;
+  collect(result: Record<string, string>): void;
 }
 
 /** Build the metadata form into `container` and wire its Convert/Cancel buttons. */
@@ -248,7 +258,24 @@ export function createMetadataForm(
   const form = document.createElement('form');
   form.className = 'metadata-form';
 
+  // Actions sit above the fields so Convert is reachable without scrolling the long form.
+  const actions = document.createElement('div');
+  actions.className = 'metadata-actions';
+  const convert = document.createElement('button');
+  convert.type = 'submit';
+  convert.textContent = 'Convert';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  actions.append(convert, cancel);
+  form.append(actions);
+
+  let credits: CreditsBlock | undefined;
   for (const def of FIELDS) {
+    if (def.kind === 'credits') {
+      credits = buildCredits(form);
+      continue;
+    }
     const id = `meta-${'key' in def ? def.key : slug(def.label)}`;
     const row = document.createElement('div');
     row.className = 'metadata-row';
@@ -265,31 +292,20 @@ export function createMetadataForm(
     form.append(row);
   }
 
-  const actions = document.createElement('div');
-  actions.className = 'metadata-actions';
-  const convert = document.createElement('button');
-  convert.type = 'submit';
-  convert.textContent = 'Convert';
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.textContent = 'Cancel';
-  actions.append(convert, cancel);
-  form.append(actions);
   container.append(form);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    handlers.onConvert(readValues(controls));
+    handlers.onConvert(readValues(controls, credits));
   });
   cancel.addEventListener('click', () => handlers.onCancel());
 
   return {
     show(prefill) {
+      credits?.apply(prefill);
       for (const { def, el } of controls) {
         if (def.kind === 'date') {
           el.value = partsToDateValue(prefill.year, prefill.month, prefill.day);
-        } else if (def.kind === 'multitext') {
-          el.value = firstPresent(prefill, def.keys);
         } else if (def.kind === 'select') {
           el.value = ensureOption(el as HTMLSelectElement, prefill[def.key]);
         } else {
@@ -304,7 +320,121 @@ export function createMetadataForm(
   };
 }
 
-function createField(def: FieldDef): Field {
+// The writer/artist block: one "Writer & artist" field by default (filling writer and every
+// art role), with a "Separate art credits" toggle that swaps in per-role fields. The toggle
+// choice persists, and a prefill with differing credits opens already separated.
+function buildCredits(form: HTMLFormElement): CreditsBlock {
+  const toggle = document.createElement('label');
+  toggle.className = 'metadata-toggle';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.id = 'meta-separate-credits';
+  toggle.append(checkbox, document.createTextNode(' Separate art credits'));
+
+  const combinedRow = makeRow('meta-writer-artist', 'Writer & artist');
+  const combined = makeInput('meta-writer-artist');
+  combined.title = 'Sets the writer and every art role to one name.';
+  combinedRow.append(combined);
+
+  const expanded = document.createElement('div');
+  expanded.className = 'credits-expanded';
+  const writerRow = makeRow('meta-writer', 'Writer');
+  const writer = makeInput('meta-writer');
+  writerRow.append(writer);
+  expanded.append(writerRow);
+  const artInputs = ART_ROLE_FIELDS.map(({ key, label }) => {
+    const id = `meta-${key}`;
+    const row = makeRow(id, label);
+    const el = makeInput(id);
+    row.append(el);
+    expanded.append(row);
+    return { key, el };
+  });
+
+  form.append(toggle, combinedRow, expanded);
+
+  const setMode = (separate: boolean): void => {
+    combinedRow.hidden = separate;
+    expanded.hidden = !separate;
+  };
+
+  checkbox.addEventListener('change', () => {
+    const separate = checkbox.checked;
+    if (separate) {
+      // Carry the combined name into any empty per-role field so it is not lost.
+      const value = combined.value.trim();
+      if (value) {
+        if (!writer.value) writer.value = value;
+        for (const art of artInputs) if (!art.el.value) art.el.value = value;
+      }
+    } else {
+      combined.value = writer.value || artInputs.find((art) => art.el.value)?.el.value || '';
+    }
+    setMode(separate);
+    saveSeparateCredits(separate);
+  });
+
+  return {
+    apply(prefill) {
+      writer.value = prefill.writer ?? '';
+      for (const art of artInputs) art.el.value = prefill[art.key] ?? '';
+      combined.value = firstPresent(prefill, CREDIT_KEYS);
+      const separate = !creditsUniform(prefill) || loadSeparateCredits();
+      checkbox.checked = separate;
+      setMode(separate);
+    },
+    collect(result) {
+      if (checkbox.checked) {
+        const w = writer.value.trim();
+        if (w) result.writer = w;
+        for (const art of artInputs) {
+          const value = art.el.value.trim();
+          if (value) result[art.key] = value;
+        }
+      } else {
+        const value = combined.value.trim();
+        if (value) {
+          for (const key of CREDIT_KEYS) result[key] = value;
+        }
+      }
+    },
+  };
+}
+
+function loadSeparateCredits(): boolean {
+  try {
+    return localStorage.getItem(SEPARATE_CREDITS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveSeparateCredits(separate: boolean): void {
+  try {
+    localStorage.setItem(SEPARATE_CREDITS_KEY, separate ? '1' : '0');
+  } catch {
+    // Persisting the toggle is a convenience; ignore storage failures.
+  }
+}
+
+function makeRow(id: string, labelText: string): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'metadata-row';
+  const label = document.createElement('label');
+  label.htmlFor = id;
+  label.textContent = labelText;
+  row.append(label);
+  return row;
+}
+
+function makeInput(id: string): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.id = id;
+  return input;
+}
+
+function createField(def: Exclude<FieldDef, { kind: 'credits' }>): Field {
   if (def.kind === 'textarea') {
     const area = document.createElement('textarea');
     area.rows = 3;
@@ -369,8 +499,12 @@ function firstPresent(prefill: ComicMetadata, keys: readonly FieldKey[]): string
   return '';
 }
 
-function readValues(controls: readonly Control[]): ComicMetadata {
+function readValues(
+  controls: readonly Control[],
+  credits: CreditsBlock | undefined,
+): ComicMetadata {
   const result: Record<string, string> = {};
+  credits?.collect(result);
   for (const { def, el } of controls) {
     const value = el.value.trim();
     if (def.kind === 'date') {
@@ -379,12 +513,6 @@ function readValues(controls: readonly Control[]): ComicMetadata {
         result.year = String(parts.year);
         result.month = String(parts.month);
         result.day = String(parts.day);
-      }
-    } else if (def.kind === 'multitext') {
-      if (value) {
-        for (const key of def.keys) {
-          result[key] = value;
-        }
       }
     } else if (value) {
       result[def.key] = value;
