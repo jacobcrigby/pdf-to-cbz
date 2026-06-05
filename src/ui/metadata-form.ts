@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { PROVENANCE_NOTE, type ComicMetadata } from '../core/pdf-metadata';
+import { PROVENANCE_NOTE, type ComicMetadata, type PdfDateParts } from '../core/pdf-metadata';
 
 type FieldKey = Exclude<keyof ComicMetadata, 'notes'>;
 
@@ -18,7 +18,6 @@ type FieldDef =
       readonly key: FieldKey;
       readonly label: string;
       readonly placeholder?: string;
-      readonly hint?: string;
       readonly persist: boolean;
     }
   | {
@@ -192,12 +191,6 @@ export function saveLastUsed(metadata: ComicMetadata): void {
   }
 }
 
-export interface DateParts {
-  readonly year: number;
-  readonly month: number;
-  readonly day: number;
-}
-
 /** Combine ComicInfo year/month/day strings into a native date input value, else ''. */
 export function partsToDateValue(year?: string, month?: string, day?: string): string {
   if (!year || !month || !day) {
@@ -207,7 +200,7 @@ export function partsToDateValue(year?: string, month?: string, day?: string): s
 }
 
 /** Parse a native `YYYY-MM-DD` date input value back into calendar parts. */
-export function dateValueToParts(value: string): DateParts | undefined {
+export function dateValueToParts(value: string): PdfDateParts | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) {
     return undefined;
@@ -438,7 +431,9 @@ function createField(def: Exclude<FieldDef, { kind: 'credits' }>): Field {
   if (def.kind === 'textarea') {
     const area = document.createElement('textarea');
     area.rows = 3;
-    applyHints(area, def.placeholder, def.hint);
+    if (def.placeholder) {
+      area.placeholder = def.placeholder;
+    }
     return area;
   }
   if (def.kind === 'select') {
@@ -460,21 +455,10 @@ function createField(def: Exclude<FieldDef, { kind: 'credits' }>): Field {
   if (def.kind === 'number') {
     input.inputMode = 'numeric';
   }
-  applyHints(input, def.placeholder, def.hint);
+  if (def.placeholder) {
+    input.placeholder = def.placeholder;
+  }
   return input;
-}
-
-function applyHints(
-  el: HTMLInputElement | HTMLTextAreaElement,
-  placeholder?: string,
-  hint?: string,
-): void {
-  if (placeholder) {
-    el.placeholder = placeholder;
-  }
-  if (hint) {
-    el.title = hint;
-  }
 }
 
 // A select can only show values it has options for; add a prefilled code that isn't in

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-const PROVENANCE = 'Converted from PDF by pdf-to-cbz';
+export const PROVENANCE_NOTE = 'Converted from PDF by pdf-to-cbz';
 
 /** Document fields read from a PDF, as plain strings before any normalization. */
 export interface RawPdfMetadata {
@@ -43,8 +43,6 @@ export interface ComicMetadata {
   readonly ageRating?: string;
 }
 
-export const PROVENANCE_NOTE = PROVENANCE;
-
 export interface PdfDateParts {
   readonly year: number;
   readonly month: number;
@@ -79,24 +77,27 @@ export function toComicMetadata(
   opts: { fallbackTitle: string },
 ): ComicMetadata {
   const date = parsePdfDate(raw.creationDate);
-  return {
-    ...optional('title', clean(raw.title) ?? clean(opts.fallbackTitle)),
-    ...optional('writer', clean(raw.author)),
-    ...optional('summary', clean(raw.subject)),
-    ...optional('year', date ? String(date.year) : undefined),
-    ...optional('month', date ? String(date.month) : undefined),
-    ...optional('day', date ? String(date.day) : undefined),
-    ...optional('languageISO', clean(raw.language)),
+  // Absent fields stay off the object (and out of ComicInfo.xml) rather than
+  // appearing as undefined.
+  const meta: Record<string, string> = {};
+  const set = (key: keyof ComicMetadata, value: string | undefined): void => {
+    if (value !== undefined) {
+      meta[key] = value;
+    }
   };
+  set('title', clean(raw.title) ?? clean(opts.fallbackTitle));
+  set('writer', clean(raw.author));
+  set('summary', clean(raw.subject));
+  if (date) {
+    meta.year = String(date.year);
+    meta.month = String(date.month);
+    meta.day = String(date.day);
+  }
+  set('languageISO', clean(raw.language));
+  return meta;
 }
 
 function clean(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-}
-
-// Spread an entry only when it has a value, so absent fields stay off the object
-// (and out of ComicInfo.xml) rather than appearing as undefined.
-function optional<K extends string, V>(key: K, value: V | undefined): Record<K, V> | object {
-  return value === undefined ? {} : { [key]: value };
 }

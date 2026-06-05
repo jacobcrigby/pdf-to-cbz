@@ -42,3 +42,21 @@ export function singleImageScale(
   const targetPx = Math.min(imageLongEdgePx, opts?.maxLongEdgePx ?? NATIVE_MAX_LONG_EDGE_PX);
   return Math.max(MIN_SCALE, targetPx / pageLongEdgePt);
 }
+
+export interface ScaleInput {
+  readonly singleFullPageImage: boolean;
+  readonly imageLongEdgePx?: number;
+  readonly widthPt: number;
+  readonly heightPt: number;
+}
+
+/**
+ * Pick the render scale for an analyzed page: a single full-page image renders at
+ * its native resolution, every other page at the default target. This is the v1
+ * render policy (spec §3.2 note), kept pure so it is testable without a worker.
+ */
+export function chooseScale(input: ScaleInput): number {
+  return input.singleFullPageImage && input.imageLongEdgePx !== undefined
+    ? singleImageScale(Math.max(input.widthPt, input.heightPt), input.imageLongEdgePx)
+    : renderScale(input.widthPt, input.heightPt);
+}

@@ -4,6 +4,11 @@
 // (PasswordException, InvalidPDFException, …). Map the ones a user can act on to
 // a clear message; everything else falls back to the error text, then a generic line.
 
+/** An error's own message, or `fallback` when it has none. */
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 /** Turn a pdf.js (or other) open/render error into a user-facing explanation. */
 export function describePdfError(error: unknown, fallback = 'Could not read this PDF.'): string {
   const name = error instanceof Error ? error.name : '';
@@ -15,6 +20,6 @@ export function describePdfError(error: unknown, fallback = 'Could not read this
     case 'MissingPDFException':
       return 'The PDF could not be read — it may be empty or incomplete.';
     default:
-      return error instanceof Error && error.message ? error.message : fallback;
+      return errorMessage(error, fallback);
   }
 }

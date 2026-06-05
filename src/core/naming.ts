@@ -12,15 +12,16 @@ export function padPageName(index: number, pageCount: number, ext: PageExt): str
   return `${String(index + 1).padStart(width, '0')}.${ext}`;
 }
 
+/** Strip a trailing `.pdf` extension (case-insensitive) from a filename. */
+export function stripPdfExtension(name: string): string {
+  return name.replace(/\.pdf$/i, '');
+}
+
 // Characters illegal in filenames on common filesystems (Windows is the strictest).
 const ILLEGAL_CHARS = /[/\\:*?"<>|]/g;
 
 /** Derive the `.cbz` download name from the source PDF filename. */
 export function toOutputFilename(sourceName: string): string {
-  const base = sourceName
-    .replace(/\.pdf$/i, '')
-    .replace(ILLEGAL_CHARS, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const base = stripPdfExtension(sourceName).replace(ILLEGAL_CHARS, '').replace(/\s+/g, ' ').trim();
   return `${base || 'comic'}.cbz`;
 }

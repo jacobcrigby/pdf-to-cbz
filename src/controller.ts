@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { buildComicInfoXml } from './core/comicinfo';
 import { padPageName, toOutputFilename, type PageExt } from './core/naming';
+import { errorMessage } from './core/pdf-errors';
 import type { ComicMetadata } from './core/pdf-metadata';
 import { poolSize } from './core/pool-size';
 import type { RuntimeCapabilities } from './core/runtime-capabilities';
@@ -131,9 +132,7 @@ async function drive(
       handlers.onCancelled();
       return;
     }
-    handlers.onError(
-      error instanceof Error && error.message ? error.message : 'Conversion failed.',
-    );
+    handlers.onError(errorMessage(error, 'Conversion failed.'));
   }
 }
 

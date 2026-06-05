@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { startConversion } from '../controller';
 import { inputWarning } from '../core/input-warning';
+import { stripPdfExtension } from '../core/naming';
 import { toComicMetadata, type ComicMetadata } from '../core/pdf-metadata';
 import type { RuntimeCapabilities } from '../core/runtime-capabilities';
 import { readPdfMetadata } from '../worker/pool';
@@ -75,7 +76,9 @@ async function openForm(
   setStatus(elements.status, 'Reading metadata…');
   try {
     const info = await readPdfMetadata(await file.arrayBuffer());
-    const derived = toComicMetadata(info.metadata ?? {}, { fallbackTitle: baseName(file.name) });
+    const derived = toComicMetadata(info.metadata ?? {}, {
+      fallbackTitle: stripPdfExtension(file.name),
+    });
     form.show(mergePrefill(derived, loadLastUsed()));
     setStatus(elements.status, '');
     setStatus(
@@ -163,10 +166,6 @@ function skipSummary(skipped: readonly number[]): string {
     return ` — ${skipped.length} page(s) skipped (${skipped.join(', ')}).`;
   }
   return ` — ${skipped.length} pages skipped.`;
-}
-
-function baseName(name: string): string {
-  return name.replace(/\.pdf$/i, '');
 }
 
 // The MIME type is empty on some platforms, so fall back to the extension.

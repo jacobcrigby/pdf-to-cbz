@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { MIN_SCALE, renderScale, singleImageScale } from '../src/core/scale';
+import { chooseScale, MIN_SCALE, renderScale, singleImageScale } from '../src/core/scale';
 
 // Tests pin explicit target/max so they do not depend on build-time env defaults.
 const opts = { targetLongEdgePx: 1600, maxScale: 2.0 } as const;
@@ -59,5 +59,31 @@ describe('singleImageScale', () => {
   it('returns the floor for non-positive inputs', () => {
     expect(singleImageScale(0, 1800, cap)).toBe(MIN_SCALE);
     expect(singleImageScale(600, 0, cap)).toBe(MIN_SCALE);
+  });
+});
+
+describe('chooseScale', () => {
+  it('renders a single full-page image at its native resolution', () => {
+    const native = singleImageScale(600, 1800);
+    expect(
+      chooseScale({
+        singleFullPageImage: true,
+        imageLongEdgePx: 1800,
+        widthPt: 600,
+        heightPt: 400,
+      }),
+    ).toBe(native);
+  });
+
+  it('falls back to the target scale for a mixed page', () => {
+    expect(chooseScale({ singleFullPageImage: false, widthPt: 600, heightPt: 400 })).toBe(
+      renderScale(600, 400),
+    );
+  });
+
+  it('uses the target scale when an image page reports no pixel size', () => {
+    expect(chooseScale({ singleFullPageImage: true, widthPt: 600, heightPt: 400 })).toBe(
+      renderScale(600, 400),
+    );
   });
 });
