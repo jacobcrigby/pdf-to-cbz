@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveCapabilities,
   probeRuntimeCapabilities,
-  type CapabilityEnv,
   type RawCapabilities,
 } from '../src/core/runtime-capabilities';
 
@@ -90,7 +89,7 @@ describe('deriveCapabilities', () => {
 });
 
 describe('probeRuntimeCapabilities', () => {
-  function env(overrides: Partial<CapabilityEnv> = {}): CapabilityEnv {
+  function env(overrides: Partial<RawCapabilities> = {}): RawCapabilities {
     return { ...allFeaturesOff, hardwareConcurrency: 4, deviceMemory: 4, ...overrides };
   }
 

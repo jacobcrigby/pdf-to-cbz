@@ -21,7 +21,10 @@ export interface RuntimeCapabilities {
   readonly deviceMemory: number;
 }
 
-/** Raw probe inputs before defaults and clamping are applied. */
+/**
+ * Raw probe inputs before defaults and clamping — the runtime surface the probe
+ * reads, injectable so tests can supply it instead of touching real globals.
+ */
 export interface RawCapabilities {
   readonly offscreenCanvas: boolean;
   readonly webpEncode: boolean;
@@ -29,16 +32,6 @@ export interface RawCapabilities {
   readonly moduleWorkers: boolean;
   readonly hardwareConcurrency?: number | undefined;
   readonly deviceMemory?: number | undefined;
-}
-
-/** The runtime surface the probe reads, injectable so tests avoid real globals. */
-export interface CapabilityEnv {
-  readonly hardwareConcurrency?: number | undefined;
-  readonly deviceMemory?: number | undefined;
-  readonly fileSystemAccess: boolean;
-  readonly offscreenCanvas: boolean;
-  readonly webpEncode: boolean;
-  readonly moduleWorkers: boolean;
 }
 
 /**
@@ -57,7 +50,7 @@ export function deriveCapabilities(raw: RawCapabilities): RuntimeCapabilities {
 }
 
 /** Probe the runtime. Defaults to the real environment; tests inject their own. */
-export function probeRuntimeCapabilities(env: CapabilityEnv = realEnv()): RuntimeCapabilities {
+export function probeRuntimeCapabilities(env: RawCapabilities = realEnv()): RuntimeCapabilities {
   return deriveCapabilities(env);
 }
 
@@ -75,7 +68,7 @@ function positiveOrDefault(value: number | undefined, fallback: number): number 
   return value;
 }
 
-function realEnv(): CapabilityEnv {
+function realEnv(): RawCapabilities {
   const offscreenCanvas = typeof OffscreenCanvas !== 'undefined';
   return {
     hardwareConcurrency: globalThis.navigator?.hardwareConcurrency,

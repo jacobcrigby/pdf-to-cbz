@@ -78,15 +78,9 @@ async function drive(
 
     try {
       const { pageCount } = pool;
-      let sink: ArchiveSink;
-      let blob: (ArchiveSink & { blob(): Blob }) | undefined;
-      if (writable) {
-        sink = streamSink(writable);
-      } else {
-        blob = blobSink();
-        sink = blob;
-      }
-      const writer = createCbzWriter(sink);
+      // FSA streams straight to disk; otherwise buffer for a Blob download at the end.
+      const delivery = writable ? streamDelivery(writable) : blobDelivery(filename);
+      const writer = createCbzWriter(delivery.sink);
       let written = 0;
 
       await pool.run(
@@ -112,9 +106,7 @@ async function drive(
       );
       await writer.finish();
 
-      if (blob) {
-        triggerDownload(blob.blob(), filename);
-      }
+      delivery.finalize();
       handlers.onDone(filename);
     } catch (error) {
       if (writable) {
@@ -132,32 +124,46 @@ async function drive(
   }
 }
 
-// Streams chunks to disk; one write at a time so fflate output is applied in order.
-function streamSink(writable: FileSystemWritableFileStream): ArchiveSink {
+// Where the archive goes: a sink for the writer plus the post-finish delivery step.
+interface Delivery {
+  readonly sink: ArchiveSink;
+  finalize(): void;
+}
+
+// Streams chunks to disk as they are produced; one write at a time so fflate output
+// is applied in order. Delivery is the streaming itself, so finalize is a no-op.
+function streamDelivery(writable: FileSystemWritableFileStream): Delivery {
   let chain: Promise<void> = Promise.resolve();
   return {
-    write(chunk) {
-      chain = chain.then(() => writable.write(chunk));
+    sink: {
+      write(chunk) {
+        chain = chain.then(() => writable.write(chunk));
+      },
+      async close() {
+        await chain;
+        await writable.close();
+      },
     },
-    async close() {
-      await chain;
-      await writable.close();
+    finalize() {
+      // Nothing to do: bytes already reached disk.
     },
   };
 }
 
-// Collects chunks in memory for a Blob + anchor download.
-function blobSink(): ArchiveSink & { blob(): Blob } {
+// Collects chunks in memory, then triggers a Blob + anchor download on finalize.
+function blobDelivery(filename: string): Delivery {
   const chunks: Uint8Array<ArrayBuffer>[] = [];
   return {
-    write(chunk) {
-      chunks.push(chunk);
+    sink: {
+      write(chunk) {
+        chunks.push(chunk);
+      },
+      close() {
+        return Promise.resolve();
+      },
     },
-    close() {
-      return Promise.resolve();
-    },
-    blob() {
-      return new Blob(chunks, { type: CBZ_MIME });
+    finalize() {
+      triggerDownload(new Blob(chunks, { type: CBZ_MIME }), filename);
     },
   };
 }

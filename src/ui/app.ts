@@ -73,7 +73,6 @@ export function initApp(elements: UiElements, capabilities: RuntimeCapabilities)
       const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
       const pool = await openPool(buffer, poolSize(capabilities, buffer.byteLength), {
         encodeType,
-        ext,
       });
       if (gen !== generation) {
         // A newer file was chosen while this one opened; discard the stale pool.

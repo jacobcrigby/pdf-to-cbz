@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { createPageScheduler } from '../core/page-scheduler';
-import type { PageExt } from '../core/naming';
 import type { RawPdfMetadata } from '../core/pdf-metadata';
 import type { RenderRequest, RenderResponse } from '../core/types';
 
@@ -27,7 +26,6 @@ export interface RenderPool {
 
 interface OpenOptions {
   readonly encodeType: string;
-  readonly ext: PageExt;
 }
 
 // A few pages per worker keeps every worker fed while bounding how many encoded
@@ -80,7 +78,6 @@ export async function openPool(
           buffer: buf,
           withMetadata: index === 0,
           encodeType: opts.encodeType,
-          ext: opts.ext,
         };
         worker.postMessage(request, [buf]);
       }),

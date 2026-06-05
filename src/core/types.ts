@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { PageExt } from './naming';
 import type { RawPdfMetadata } from './pdf-metadata';
 
 /** Main thread → render worker. */
@@ -10,7 +9,6 @@ export type RenderRequest =
       readonly buffer: ArrayBuffer;
       readonly withMetadata: boolean;
       readonly encodeType: string;
-      readonly ext: PageExt;
     }
   | { readonly type: 'render'; readonly index: number };
 
