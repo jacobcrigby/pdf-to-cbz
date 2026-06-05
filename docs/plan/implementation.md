@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # pdf-to-cbz — v1 Implementation Plan
 
 **Canonical, in-repo implementation plan.** Derives from the spec
@@ -7,16 +8,16 @@ executed by **any** coding agent — see "Cross-agent handoff" below.
 
 ## Locked decisions (D1–D8)
 
-| | Decision | Choice |
-|---|---|---|
-| D1 | Conversion engine | Hybrid — extract original bytes for single-image (JPEG) pages, else render |
-| D2 | UI stack | Vanilla TS + Vite (no framework) |
-| D3 | ZIP | fflate, streaming; adaptive light DEFLATE when affordable, else STORE |
-| D4 | Concurrency | Bounded worker pool, sized from measured runtime capability |
-| D5 | Delivery | Blob + anchor baseline; File System Access streaming when present |
-| D6 | Rendered format | WebP (+ JPEG fallback); extracted pages keep original bytes |
-| D7 | pdf.js | Bundled first-party (no CDN) |
-| D8 | Metadata | ComicInfo.xml at zip root; page 0 = FrontCover; user-editable fields |
+|     | Decision          | Choice                                                                     |
+| --- | ----------------- | -------------------------------------------------------------------------- |
+| D1  | Conversion engine | Hybrid — extract original bytes for single-image (JPEG) pages, else render |
+| D2  | UI stack          | Vanilla TS + Vite (no framework)                                           |
+| D3  | ZIP               | fflate, streaming; adaptive light DEFLATE when affordable, else STORE      |
+| D4  | Concurrency       | Bounded worker pool, sized from measured runtime capability                |
+| D5  | Delivery          | Blob + anchor baseline; File System Access streaming when present          |
+| D6  | Rendered format   | WebP (+ JPEG fallback); extracted pages keep original bytes                |
+| D7  | pdf.js            | Bundled first-party (no CDN)                                               |
+| D8  | Metadata          | ComicInfo.xml at zip root; page 0 = FrontCover; user-editable fields       |
 
 Rationale for each choice is captured inline in `AGENTS.md` §8.
 
@@ -49,7 +50,7 @@ stream back throughout. See spec §3 and §7.
 ## Build phases (each gated by sign-off; one squash commit per phase on `main`)
 
 - **Phase 0 — Spec, plan & handoff setup.** This spec/plan/`PROGRESS.md`; reconcile
-  `AGENTS.md` + planning HTML; establish git + handoff conventions. *(in progress)*
+  `AGENTS.md` + planning HTML; establish git + handoff conventions. _(in progress)_
 - **Phase 1 — Scaffold + deploy runner.** Vite + TS strict, `index.html`, minimal UI shell,
   SPDX headers, `runtime-capabilities.ts` stub + tests, `npm` scripts, ESLint + Prettier, and
   the **GitHub Actions CI + GitHub Pages deploy** workflows (build runs in the runner;
@@ -104,6 +105,7 @@ releasable — one clean commit per phase.
 
 Resumable by any agent (Claude Code, Google Antigravity, OpenCode, OpenAI Codex, …) at any
 commit:
+
 - Authoritative artifacts are **in the repo** as plain markdown: this plan, the spec, and
   `PROGRESS.md`. `AGENTS.md` is the shared entry point and explains how to resume.
 - `PROGRESS.md` is updated and committed with each change — state lives in the repo, not in

@@ -7,13 +7,13 @@ description: Use when writing, editing, or reviewing code comments or docstrings
 
 ## Overview
 
-Source code is a snapshot of what the system **is right now** — not a commit log, a changelog, or a record of how it got here. A comment earns its place only by explaining a non-obvious *why* the code itself can't express. The bug you fixed, the version before, the approach you rejected, the review that prompted the change — all belong in the commit message, never the source.
+Source code is a snapshot of what the system **is right now** — not a commit log, a changelog, or a record of how it got here. A comment earns its place only by explaining a non-obvious _why_ the code itself can't express. The bug you fixed, the version before, the approach you rejected, the review that prompted the change — all belong in the commit message, never the source.
 
 ## The Core Distinction (read this first)
 
 The trap: **change-narrative disguises itself as "why."** Both comments below claim to explain why — only one is allowed:
 
-- ✅ **Standing why (present tense):** why the code is shaped this way, stated as a fact true *right now*.
+- ✅ **Standing why (present tense):** why the code is shaped this way, stated as a fact true _right now_.
   `Each attempt needs its own timeout; a retry count alone doesn't bound wall-clock time.`
 - ❌ **Change-narrative (history):** the story of how the code got here.
   `Bug #1: the old version had no timeout and hung forever, so we added timeout= to fix it.`
@@ -30,13 +30,14 @@ Same underlying fact, two framings. State the constraint that is true today; del
 
 ## The Three Rules
 
-1. **Present tense, current state only.** Describe what the code *does* / *is* — never what it *was* or what *changed*.
+1. **Present tense, current state only.** Describe what the code _does_ / _is_ — never what it _was_ or what _changed_.
 2. **No journaling.** No bug history, old-version narration, discarded alternatives, "what I tried," review lore, or commented-out code. Git holds history; source holds state.
 3. **Why, not how — and only when non-obvious.** Self-documenting code needs no comment. Explain intent the code can't express; never paraphrase the code.
 
 ## Before / After
 
 Fixing a bug (Python):
+
 ```python
 # ❌ narrates the bug and the fix
 # Bug #2: the old version had no raise, so it returned None silently.
@@ -49,6 +50,7 @@ raise last_error
 ```
 
 Refactor (TypeScript):
+
 ```typescript
 // ❌ carries the old design forward
 // Callers pass a Map (was previously a User[] scanned linearly).
@@ -58,6 +60,7 @@ return users.get(id);
 ```
 
 Tuning a constant (C):
+
 ```c
 // ❌ "// bumped from 10us per review"
 // ✅ states the standing constraint and names the failure
@@ -67,11 +70,11 @@ Tuning a constant (C):
 
 ## Quick Reference — run before keeping any comment
 
-| Test | Question | If yes |
-|------|----------|--------|
-| History | Does it mention a past version, a bug, what changed, or what you tried? | Delete it |
-| Tense | Past-tense verbs — fixed, added, changed, removed, was, used to? | Rewrite present tense or delete |
-| Noise | Could a competent reader get this straight from the code? | Delete it |
+| Test    | Question                                                                | If yes                          |
+| ------- | ----------------------------------------------------------------------- | ------------------------------- |
+| History | Does it mention a past version, a bug, what changed, or what you tried? | Delete it                       |
+| Tense   | Past-tense verbs — fixed, added, changed, removed, was, used to?        | Rewrite present tense or delete |
+| Noise   | Could a competent reader get this straight from the code?               | Delete it                       |
 
 ## Red Flags — delete on sight
 
@@ -83,10 +86,10 @@ Tuning a constant (C):
 
 ## Common Rationalizations
 
-| Excuse | Reality |
-|--------|---------|
-| "I'm documenting *why*, not what." | Why-it's-shaped-this-way (present) ✅. Why-it-changed (history) ❌. If it needs the old version to parse, it's history. |
-| "It's a personal project — generous comments are fine." | Personal ≠ diary. The change-story goes in the commit message; future-you reads `git log` / `git blame`, not narration baked into the source. |
-| "The user *asked* me to note what was going wrong." | Put the standing constraint in the code; put the bug story in the commit message or PR. Both get documented — in the right place. |
-| "Recording the rejected options helps future decisions." | State the current rule and its present-tense rationale. Rejected options live in the PR discussion, not the source. |
-| "It's the spirit that matters and this comment is helpful." | Violating the letter is violating the spirit. A helpful-feeling history comment is still history. Delete it. |
+| Excuse                                                      | Reality                                                                                                                                       |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| "I'm documenting _why_, not what."                          | Why-it's-shaped-this-way (present) ✅. Why-it-changed (history) ❌. If it needs the old version to parse, it's history.                       |
+| "It's a personal project — generous comments are fine."     | Personal ≠ diary. The change-story goes in the commit message; future-you reads `git log` / `git blame`, not narration baked into the source. |
+| "The user _asked_ me to note what was going wrong."         | Put the standing constraint in the code; put the bug story in the commit message or PR. Both get documented — in the right place.             |
+| "Recording the rejected options helps future decisions."    | State the current rule and its present-tense rationale. Rejected options live in the PR discussion, not the source.                           |
+| "It's the spirit that matters and this comment is helpful." | Violating the letter is violating the spirit. A helpful-feeling history comment is still history. Delete it.                                  |

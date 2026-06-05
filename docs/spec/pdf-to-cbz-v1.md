@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # pdf-to-cbz — v1 Specification
 
 **Status:** authoritative source of truth (Spec-Driven Development).
@@ -41,6 +42,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
 ## 3. Functional requirements
 
 ### 3.1 Input
+
 - **FR-1** Accept exactly one PDF via file picker or drag-and-drop.
 - **FR-2** Read the file fully client-side; never transmit it anywhere (verifiable: no
   network requests during conversion).
@@ -48,6 +50,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
   PDFs and either prompt for a password (if feasible) or fail cleanly with explanation.
 
 ### 3.2 Conversion (hybrid engine)
+
 - **FR-4** For each page, decide **extract** vs **render**:
   - **Extract** when the page consists of a single full-page image whose original bytes
     are cleanly recoverable — in v1 this means **JPEG/DCTDecode passthrough**.
@@ -61,13 +64,14 @@ quality, DPI, page range) beyond the single quality default; server features of 
 - **FR-7** Pages appear in the archive in source page order (§5.1).
 
 > **v1 implementation note (hybrid):** pdf.js does not expose a page image's original
-> encoded bytes through its public API, so true DCTDecode byte-passthrough (FR-4 *extract*)
+> encoded bytes through its public API, so true DCTDecode byte-passthrough (FR-4 _extract_)
 > is **deferred**. Instead, a page detected as a single full-page image is **rendered at the
 > image's native resolution** (bypassing the ~1600px target of FR-6, bounded by a configurable
 > cap) so scans stay sharp; all pages are still encoded per FR-5. Byte-identical passthrough
 > can be revisited later via independent PDF stream parsing.
 
 ### 3.3 Archive & metadata
+
 - **FR-8** Output is a single `.cbz` (ZIP). Compression per §7.3 (adaptive light DEFLATE
   or STORE). The output filename derives from the source name, sanitized (§5.2).
 - **FR-9** Write `ComicInfo.xml` at the archive root (§5.3), populated from PDF-derived
@@ -75,6 +79,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
   via a `<Pages>` entry with `Image="0"` and `Type="FrontCover"`.
 
 ### 3.4 User-supplied metadata
+
 - **FR-10** Before conversion, present a form **pre-filled** from PDF-derived metadata,
   letting the user add or override the editable fields in §5.4. User values win over
   PDF-derived values. Fields left blank are omitted from `ComicInfo.xml` (no empty tags).
@@ -82,6 +87,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
   next time. No network, no cross-device sync.
 
 ### 3.5 Output delivery & feedback
+
 - **FR-12** Deliver the archive via **File System Access** streaming when available, else
   a **Blob + anchor download** (§7.4).
 - **FR-13** Show conversion progress (page X of N) and allow **cancel**; cancelling frees
@@ -119,6 +125,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
 ## 5. Data formats
 
 ### 5.1 Page naming
+
 - Entries named `NNNN.<ext>`, zero-padded to a width of `max(4, digits(pageCount))`,
   starting at `0001`. Numeric order equals reading order (preserves RTL when the source
   page order is RTL).
@@ -126,11 +133,13 @@ quality, DPI, page range) beyond the single quality default; server features of 
   pages (e.g. `jpg`).
 
 ### 5.2 Output filename
+
 - Derive from the source filename minus its `.pdf` extension; sanitize by removing path
   separators and characters illegal on common filesystems (`/ \ : * ? " < > |`),
   collapsing whitespace, trimming, and falling back to `comic` if empty. Append `.cbz`.
 
 ### 5.3 ComicInfo.xml
+
 - UTF-8 XML, root element `<ComicInfo>` (ComicInfo schema; Anansi Project). All values
   XML-escaped. Empty/unknown fields are omitted. A `<Pages>` element lists `<Page>`
   entries; at minimum page 0 is `<Page Image="0" Type="FrontCover" />`. `PageCount`
@@ -141,6 +150,7 @@ quality, DPI, page range) beyond the single quality default; server features of 
   (e.g. "Converted from PDF by pdf-to-cbz").
 
 ### 5.4 Editable metadata fields (form)
+
 Series, Number, Volume, Count, Title, Summary, Writer, Penciller, Inker, Colorist,
 Letterer, CoverArtist, Editor, Publisher, Genre, Tags, Web, LanguageISO, AgeRating, and
 reading direction (`Manga` = `No`/`Yes`/`YesAndRightToLeft`). PDF-derived values pre-fill
@@ -164,23 +174,27 @@ A single module probes capability at load and yields a `Capabilities` object tha
 all adaptive behavior. **No mobile/desktop branching** — only measured capability.
 
 ### 7.1 Probes
+
 - **Features:** `OffscreenCanvas`, WebP encode support (test `convertToBlob`/`toDataURL`
   output type once), File System Access (`window.showSaveFilePicker`), module workers.
 - **Resources:** `navigator.hardwareConcurrency`, `navigator.deviceMemory` (both optional;
   use conservative defaults when absent).
 
 ### 7.2 Worker pool sizing & backpressure
+
 - Pool size derives from cores/memory, clamped to `[1, POOL_MAX]` with `POOL_MAX = 4`.
   On low signals it converges to 1. Backpressure caps **in-flight (decoded but not-yet-archived) pages** to
   a small bound so peak memory does not grow with page count. Each finished page is
   streamed into the archive and its buffers released immediately.
 
 ### 7.3 Compression
+
 - Use **light DEFLATE** (low level) when resource headroom exists; otherwise **STORE**.
   Rationale: WebP/JPEG pages are already compressed, so gains are mostly on `ComicInfo.xml`
   and any uncompressed bytes — the level is kept low to bound CPU.
 
 ### 7.4 Delivery & encoder
+
 - **Delivery:** FSA streaming when `showSaveFilePicker` exists (lowest peak memory), else
   Blob + anchor.
 - **Encoder/canvas:** OffscreenCanvas when present, else main-thread `<canvas>`.

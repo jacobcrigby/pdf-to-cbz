@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # PROGRESS
 
 Single source of truth for **current state of work**, updated and committed with every
@@ -9,13 +10,15 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 **Current phase:** Phase 8 — PWA (complete); v1 phases done
 
 ## How to resume
+
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
 2. `git log --oneline` for the latest checkpoint; pick up the first unchecked item below.
 3. Build/test with the `npm` scripts (added in Phase 1).
 
 ## Phase checklist
 
-### Phase 0 — Spec, plan & handoff setup  (complete)
+### Phase 0 — Spec, plan & handoff setup (complete)
+
 - [x] Write `docs/spec/pdf-to-cbz-v1.md`
 - [x] Mirror plan to `docs/plan/implementation.md`
 - [x] Create `PROGRESS.md`
@@ -25,6 +28,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - [x] Squash-merge to `main` + push
 
 ### Phase 1 — Scaffold + deploy runner
+
 - [x] Vite + TS strict, `index.html`, minimal UI shell, SPDX headers
 - [x] `runtime-capabilities.ts` stub + unit tests
 - [x] `npm` scripts: `dev` / `build` / `preview` / `test`
@@ -33,6 +37,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - One-time manual step: repo Settings > Pages > Source = "GitHub Actions"
 
 ### Phase 2 — Render path end-to-end
+
 - [x] Bundled pdf.js in `convert.worker`; render-all → fflate zip → download
   - Worker + OffscreenCanvas only; main-thread `<canvas>` fallback deferred (see decisions)
   - Render constants build-time configurable via `VITE_*` env (see `.env.example`)
@@ -40,6 +45,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - Verified: real PDF converts and renders correctly with zero network
 
 ### Phase 3 — Naming, ordering, metadata
+
 - [x] `pdf-metadata.ts`, `comicinfo.ts`; ComicInfo.xml at root + page-0 FrontCover
   - PDF-derived only (Title/Writer/Summary/Year-Month-Day/LanguageISO/PageCount/Notes); user
     override form is Phase 6
@@ -47,6 +53,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - Pending: manual e2e — inspect `ComicInfo.xml` in the `.cbz` and confirm cover/metadata in a reader
 
 ### Phase 4 — Hybrid (pragmatic)
+
 - [x] `page-classifier` + page `analyze()`: single full-page image pages render at native
       resolution; mixed pages use the ~1600px target
   - True JPEG byte-passthrough deferred — pdf.js doesn't expose original image bytes
@@ -54,6 +61,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   - Pending: manual e2e — confirm a scanned/image PDF comes out sharper than the 1600px cap
 
 ### Phase 5 — Capability-sized pool
+
 - [x] `worker/render.worker.ts` (renders one page on request) + `worker/pool.ts` (drives N
       workers); zip + ComicInfo + download moved to the controller (main thread)
 - [x] `core/page-scheduler.ts` (pure, tested): reorder-window backpressure + ordered emission
@@ -70,6 +78,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
   by a 256 MiB budget) — verified working on Android (Pixel 9 Pro XL).
 
 ### Future — per-worker PDF slicing (planned, not started)
+
 Each render worker copies the whole PDF (no SharedArrayBuffer on a static host). A later phase
 can split the source into N sub-PDFs (via `pdf-lib`) so each worker loads only its page range,
 cutting steady-state memory for very large PDFs. Tradeoffs to weigh then: ~300 KB dependency,
@@ -77,6 +86,7 @@ an up-front main-thread parse/spike, double-parsing, and static partitioning (lo
 replacing the current dynamic work-stealing scheduler.
 
 ### Phase 6 — Metadata entry & overrides
+
 - [x] Pre-conversion form (spec §5.4 fields), pre-filled + locally persisted
   - Selecting a PDF reads its metadata (throwaway worker), then shows the form pre-filled
     (PDF-derived wins, else last-used from localStorage); Convert click drives conversion and
@@ -87,6 +97,7 @@ replacing the current dynamic work-stealing scheduler.
     smoke-tested in a real browser (23 fields, hidden until a PDF is chosen)
 
 ### Phase 7 — UX hardening
+
 - [x] Progress, cancel, warn-and-continue summary, encrypted/corrupt handling, size warning
   - Progress: `<progress>` bar driven by the pool's `onProgress` (page X of N) alongside the
     status text
@@ -105,6 +116,7 @@ replacing the current dynamic work-stealing scheduler.
   - Pure helpers unit-tested; cancel/progress/warning wiring is manual e2e
 
 ### Phase 8 — Fast-follow (separate sign-off)
+
 - [x] PWA (manifest + service worker) on the Pages hosting from Phase 1
   - `vite-plugin-pwa` (Workbox `generateSW`, `registerType: autoUpdate`, auto-injected
     registration) precaches the app shell — including the bundled pdf.js + render workers —

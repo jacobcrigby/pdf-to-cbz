@@ -127,7 +127,7 @@ choice; the rationale is captured inline below.
 - **Runtime adaptation (no mobile/desktop hard-coding).** A single
   `core/runtime-capabilities.ts` probes features (OffscreenCanvas, WebP encode,
   `showSaveFilePicker`, module workers) and resources (`hardwareConcurrency`,
-  `deviceMemory`). All behavior keys off *measured capability*, never device class.
+  `deviceMemory`). All behavior keys off _measured capability_, never device class.
 - **Concurrency:** a **bounded worker pool** sized from that capability (clamped to a
   safe floor/ceiling; converges to single-worker on weak devices), with **backpressure**
   so only a few decoded pages are in flight — each streams into the archive and is
