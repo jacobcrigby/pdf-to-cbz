@@ -6,7 +6,7 @@ change so any agent can resume from the repo alone. See `docs/plan/implementatio
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 **Active branch:** `main` (committing directly through v1)
-**Current phase:** Phase 7 — UX hardening (complete); Phase 8 (PWA) next
+**Current phase:** Phase 8 — PWA (complete); v1 phases done
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -105,4 +105,14 @@ replacing the current dynamic work-stealing scheduler.
   - Pure helpers unit-tested; cancel/progress/warning wiring is manual e2e
 
 ### Phase 8 — Fast-follow (separate sign-off)
-- [ ] PWA (manifest + service worker) on the Pages hosting from Phase 1
+- [x] PWA (manifest + service worker) on the Pages hosting from Phase 1
+  - `vite-plugin-pwa` (Workbox `generateSW`, `registerType: autoUpdate`, auto-injected
+    registration) precaches the app shell — including the bundled pdf.js + render workers —
+    so the app runs fully offline. No runtime caching: user PDFs are read in memory and never
+    fetched, so there is nothing user-related to cache (NFR-1, AGENTS §2)
+  - Manifest (name/icons/theme/standalone) uses relative `start_url`/`scope` to match the
+    GitHub Pages subpath (`base: './'`); `maximumFileSizeToCacheInBytes` raised to 3 MiB so
+    the ~1.2 MB pdf.worker precaches
+  - Icons generated dependency-free by `scripts/generate-icons.mjs` (`npm run icons`) into
+    `public/`: 192/512 (any) + 512 (maskable) PNGs, an apple-touch icon, and a favicon SVG
+  - Pending: manual e2e — install the built app, go offline, confirm a conversion still works

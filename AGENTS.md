@@ -134,10 +134,16 @@ See `docs/planning/architecture-decisions.html` for the rationale behind each ch
   primary memory defense — never let the pool grow unbounded.
 - **Output delivery:** **File System Access** streaming when `showSaveFilePicker` is
   present at runtime (lowest peak memory), else a universal **Blob + anchor** download.
+- **PWA (implemented, Phase 8):** **`vite-plugin-pwa`** (Workbox `generateSW`,
+  `registerType: autoUpdate`) precaches the app shell — including the bundled pdf.js and
+  render workers — for full offline use. No runtime caching is configured: user PDFs are
+  read in memory and never fetched, so there is nothing user-related to cache (the service
+  worker must never cache or transmit a user's file). The manifest uses relative
+  `start_url`/`scope` for the GitHub Pages subpath; icons are generated dependency-free by
+  `scripts/generate-icons.mjs` into `public/`.
 - **Provisional defaults (may change):** rasterize to ~1600px long edge with a soft
   size/page-count **warning** (not a hard cap); an undecodable page → **warn and
-  continue** (skip it, surface a summary), never a silent failure; **PWA** (service
-  worker + manifest) lands as a fast-follow once conversion works.
+  continue** (skip it, surface a summary), never a silent failure.
 
 ## 9. Resuming work / handoff
 
