@@ -151,10 +151,21 @@ quality, DPI, page range) beyond the single quality default; server features of 
 
 ### 5.4 Editable metadata fields (form)
 
-Series, Number, Volume, Count, Title, Summary, Writer, Penciller, Inker, Colorist,
-Letterer, CoverArtist, Editor, Publisher, Genre, Tags, Web, LanguageISO, AgeRating, and
-reading direction (`Manga` = `No`/`Yes`/`YesAndRightToLeft`). PDF-derived values pre-fill
-where available; user input overrides.
+The form supplies these ComicInfo fields: Title, Series, Number, Volume, Count, Summary,
+Writer, Penciller, Inker, Colorist, Letterer, CoverArtist, Editor, Publisher, Genre, Tags,
+Web, LanguageISO, AgeRating, and reading direction (`Manga` =
+`No`/`Yes`/`YesAndRightToLeft`). PDF-derived values pre-fill where available; user input
+overrides.
+
+**Presentation (tuned for self-published/zine use):** fields are ordered by importance with
+the creator credits near the top. Because one person usually does all the art on a zine, the
+visual-art roles (Penciller, Inker, Colorist, Letterer, CoverArtist) are entered through a
+single **Artist** input that writes the same name to each; **Writer** and **Editor** stay
+separate. To keep entry easy, the publication date is a date picker (mapping to
+`Year`/`Month`/`Day`), `Language` is chosen by name from a list of common languages (storing
+the ISO code, with an unlisted prefilled code preserved), and AgeRating and reading direction
+are dropdowns of their valid enum values. The output `ComicInfo.xml` still carries every
+field above.
 
 ---
 
