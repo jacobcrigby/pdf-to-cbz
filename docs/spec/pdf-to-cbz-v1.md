@@ -7,7 +7,7 @@
 This document is the contract the implementation must satisfy. The implementation plan
 (`docs/plan/implementation.md`) and `PROGRESS.md` derive from it. **Any change to a
 decision updates this spec first**, then the plan, then code. Rationale for the choices
-lives in `docs/planning/architecture-decisions.html`.
+lives in `AGENTS.md` §8 and the locked-decisions table in `docs/plan/implementation.md`.
 
 ---
 

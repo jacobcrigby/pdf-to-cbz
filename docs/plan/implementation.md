@@ -18,7 +18,7 @@ executed by **any** coding agent — see "Cross-agent handoff" below.
 | D7 | pdf.js | Bundled first-party (no CDN) |
 | D8 | Metadata | ComicInfo.xml at zip root; page 0 = FrontCover; user-editable fields |
 
-Rationale: `docs/planning/architecture-decisions.html`.
+Rationale for each choice is captured inline in `AGENTS.md` §8.
 
 ## Module layout
 

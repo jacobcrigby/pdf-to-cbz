@@ -82,9 +82,9 @@ The main risk in this app is running out of memory on a large PDF on a phone.
   change (with a `Co-Authored-By` trailer) as a self-describing checkpoint. At phase
   completion (tests green + sign-off), squash-merge to `main` and push — one clean
   commit per phase; `main` stays releasable.
-- **Decisions** are recorded in the planning doc
-  (`docs/planning/architecture-decisions.html`) and §8 below. Write down any decision a
-  future contributor would otherwise have to reverse-engineer.
+- **Decisions** are recorded in §8 below and the locked-decisions table in
+  `docs/plan/implementation.md`. Write down any decision a future contributor would
+  otherwise have to reverse-engineer.
 - **Keep docs current — no stale docs.** When behavior, decisions, or process change,
   update the affected docs (this file first) in the **same** change. A doc that
   contradicts reality is a bug; fix it on sight.
@@ -94,7 +94,8 @@ The main risk in this app is running out of memory on a large PDF on a phone.
 
 ## 8. Architecture (decided 2026-06-03)
 
-See `docs/planning/architecture-decisions.html` for the rationale behind each choice.
+The locked-decisions table (D1–D8) in `docs/plan/implementation.md` summarizes each
+choice; the rationale is captured inline below.
 
 - **Simple & event-driven (overriding principle).** Favor the fewest moving parts that
   solve the problem (YAGNI; no speculative abstraction). Components **react to events** —

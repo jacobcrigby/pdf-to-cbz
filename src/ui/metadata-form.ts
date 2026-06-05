@@ -3,11 +3,17 @@ import { PROVENANCE_NOTE, type ComicMetadata } from '../core/pdf-metadata';
 
 type FieldKey = Exclude<keyof ComicMetadata, 'notes'>;
 
+// A select choice: `value` is what ComicInfo.xml stores, `label` is what the user sees.
+interface SelectOption {
+  readonly value: string;
+  readonly label: string;
+}
+
 interface FieldDef {
   readonly key: FieldKey;
   readonly label: string;
   readonly kind: 'text' | 'textarea' | 'select';
-  readonly options?: readonly string[];
+  readonly options?: readonly SelectOption[];
   // Whether the value carries over to the next file via localStorage. Per-issue
   // fields (title, dates, number, summary) do not; series-level ones do.
   readonly persist: boolean;
@@ -39,7 +45,13 @@ const FIELDS: readonly FieldDef[] = [
     key: 'manga',
     label: 'Reading direction',
     kind: 'select',
-    options: ['', 'No', 'Yes', 'YesAndRightToLeft'],
+    // Values are the ComicInfo `Manga` enum; labels read plainly for the user.
+    options: [
+      { value: '', label: 'Unspecified' },
+      { value: 'No', label: 'Left to right (Western)' },
+      { value: 'Yes', label: 'Manga' },
+      { value: 'YesAndRightToLeft', label: 'Manga, right to left' },
+    ],
     persist: true,
   },
   { key: 'ageRating', label: 'Age rating', kind: 'text', persist: true },
@@ -167,8 +179,8 @@ function createField(def: FieldDef): Field {
     const select = document.createElement('select');
     for (const option of def.options ?? []) {
       const el = document.createElement('option');
-      el.value = option;
-      el.textContent = option === '' ? '(unset)' : option;
+      el.value = option.value;
+      el.textContent = option.label;
       select.append(el);
     }
     return select;

@@ -18,8 +18,8 @@ agent (Claude Code, Antigravity, OpenCode, Codex, …) sees the same guidance.
 - **Surface architectural decisions as options** — present 2–3 side-by-side with
   pros/cons/risk and a recommendation; let the user pick. Don't resolve silently.
 - **Name assumptions explicitly** (A1, A2, …) so they can be challenged.
-- **Always list risks/edge-cases and open questions.** The side-by-side decision record is
-  `docs/planning/architecture-decisions.html`.
+- **Always list risks/edge-cases and open questions.** Locked decisions land in `AGENTS.md`
+  §8 and the decisions table in `docs/plan/implementation.md`.
 
 ## How we build
 

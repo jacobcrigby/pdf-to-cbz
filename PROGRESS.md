@@ -20,7 +20,7 @@ the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 - [x] Mirror plan to `docs/plan/implementation.md`
 - [x] Create `PROGRESS.md`
 - [x] Reconcile `AGENTS.md` §8 + add "Resuming work / handoff" section
-- [x] Add D8 block + "decisions locked" banner to `docs/planning/architecture-decisions.html`
+- [x] Record locked decisions (D1–D8) in `AGENTS.md` §8 + the plan's decisions table
 - [x] Adopt `docs/conventions/clean-documentation.md` + require it for all agents in `AGENTS.md`
 - [x] Squash-merge to `main` + push
 
