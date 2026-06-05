@@ -22,7 +22,16 @@ export interface ConversionInput {
   readonly fileSystemAccess: boolean;
 }
 
+// The proper CBZ media type, used for the File System Access save dialog's file-type
+// filter (where the OS handles the name and extension correctly).
 const CBZ_MIME = 'application/vnd.comicbook+zip';
+
+// For the Blob + anchor fallback, label the data as generic binary instead. Chrome on
+// Android derives a download's handling from the Blob's MIME type; given the unknown
+// `vnd.comicbook+zip` it mangles the `.cbz` extension (e.g. appends a de-dupe counter
+// after it). `application/octet-stream` tells the browser to save the bytes verbatim
+// under the name the anchor supplies, leaving the extension intact.
+const DOWNLOAD_MIME = 'application/octet-stream';
 
 // One PDF at a time: a job in flight owns the worker pool until it settles.
 let running = false;
@@ -163,7 +172,7 @@ function blobDelivery(filename: string): Delivery {
       },
     },
     finalize() {
-      triggerDownload(new Blob(chunks, { type: CBZ_MIME }), filename);
+      triggerDownload(new Blob(chunks, { type: DOWNLOAD_MIME }), filename);
     },
   };
 }
