@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { startConversion } from '../controller';
 import { inputWarning } from '../core/input-warning';
-import { stripPdfExtension } from '../core/naming';
+import { stripPdfExtension, type PageExt } from '../core/naming';
 import { toComicMetadata, type ComicMetadata } from '../core/pdf-metadata';
+import { poolSize } from '../core/pool-size';
 import type { RuntimeCapabilities } from '../core/runtime-capabilities';
-import { readPdfMetadata } from '../worker/pool';
+import { openPool, type RenderPool } from '../worker/pool';
 import { setStatus, type UiElements } from './dom';
 import {
   createMetadataForm,
@@ -14,27 +15,97 @@ import {
   type MetadataForm,
 } from './metadata-form';
 
+// A PDF chosen and opened, awaiting the user's Convert/Cancel. The pool stays open
+// through form editing and is reused for conversion, so the file is parsed once.
+interface OpenSession {
+  readonly pool: RenderPool;
+  readonly file: File;
+  readonly ext: PageExt;
+}
+
 /** Wire drop/select events so a chosen PDF opens the metadata form, then converts. */
 export function initApp(elements: UiElements, capabilities: RuntimeCapabilities): void {
   const { dropzone, fileInput } = elements;
-  let selected: File | undefined;
+  let session: OpenSession | undefined;
+  // Bumped on every new selection so a slow open can tell it has been superseded.
+  let generation = 0;
+
+  // Tear down an open-but-not-yet-converted pool (new file chosen, or cancelled).
+  const closeSession = (): void => {
+    session?.pool.terminate();
+    session = undefined;
+  };
 
   const form: MetadataForm = createMetadataForm(elements.metadata, {
     onConvert: (metadata) => {
       form.hide();
       saveLastUsed(metadata);
-      if (selected) {
-        convert(elements, capabilities, selected, metadata);
+      if (session) {
+        const active = session;
+        // The controller now owns the pool's lifetime through conversion.
+        session = undefined;
+        convert(elements, capabilities, active, metadata);
       }
     },
     onCancel: () => {
       form.hide();
-      selected = undefined;
+      closeSession();
       fileInput.disabled = false;
       setStatus(elements.warning, '');
       setStatus(elements.status, '');
     },
   });
+
+  // Open the render pool (which also reads the PDF's metadata), then show the form
+  // pre-filled — PDF values win, falling back to last-used values from a prior run.
+  const openForm = async (file: File): Promise<void> => {
+    if (!capabilities.offscreenCanvas || !capabilities.moduleWorkers) {
+      setStatus(elements.status, 'This browser is not supported yet.');
+      return;
+    }
+    const gen = generation;
+    fileInput.disabled = true;
+    setStatus(elements.warning, '');
+    setStatus(elements.status, 'Reading metadata…');
+    try {
+      const buffer = await file.arrayBuffer();
+      const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
+      const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
+      const pool = await openPool(buffer, poolSize(capabilities, buffer.byteLength), {
+        encodeType,
+        ext,
+      });
+      if (gen !== generation) {
+        // A newer file was chosen while this one opened; discard the stale pool.
+        pool.terminate();
+        return;
+      }
+      session = { pool, file, ext };
+
+      const derived = toComicMetadata(pool.metadata ?? {}, {
+        fallbackTitle: stripPdfExtension(file.name),
+      });
+      form.show(mergePrefill(derived, loadLastUsed()));
+      setStatus(elements.status, '');
+      setStatus(
+        elements.warning,
+        inputWarning({
+          fileSizeBytes: file.size,
+          pageCount: pool.pageCount,
+          streamingDelivery: capabilities.fileSystemAccess,
+        }) ?? '',
+      );
+    } catch (error) {
+      if (gen !== generation) {
+        return;
+      }
+      fileInput.disabled = false;
+      setStatus(
+        elements.status,
+        error instanceof Error ? error.message : 'Could not read this PDF.',
+      );
+    }
+  };
 
   const onFile = (file: File | undefined): void => {
     if (!file) {
@@ -44,8 +115,10 @@ export function initApp(elements: UiElements, capabilities: RuntimeCapabilities)
       setStatus(elements.status, 'Choose a PDF file.');
       return;
     }
-    selected = file;
-    void openForm(elements, capabilities, form, file);
+    // Abandon any previously opened file before opening the new one.
+    generation += 1;
+    closeSession();
+    void openForm(file);
   };
 
   dropzone.addEventListener('dragover', (event) => {
@@ -63,42 +136,10 @@ export function initApp(elements: UiElements, capabilities: RuntimeCapabilities)
   fileInput.addEventListener('change', () => onFile(fileInput.files?.[0]));
 }
 
-// Read the PDF's own metadata, then show the form pre-filled (PDF values win,
-// falling back to the last-used values persisted from a previous conversion).
-async function openForm(
-  elements: UiElements,
-  capabilities: RuntimeCapabilities,
-  form: MetadataForm,
-  file: File,
-): Promise<void> {
-  elements.fileInput.disabled = true;
-  setStatus(elements.warning, '');
-  setStatus(elements.status, 'Reading metadata…');
-  try {
-    const info = await readPdfMetadata(await file.arrayBuffer());
-    const derived = toComicMetadata(info.metadata ?? {}, {
-      fallbackTitle: stripPdfExtension(file.name),
-    });
-    form.show(mergePrefill(derived, loadLastUsed()));
-    setStatus(elements.status, '');
-    setStatus(
-      elements.warning,
-      inputWarning({
-        fileSizeBytes: file.size,
-        pageCount: info.pageCount,
-        streamingDelivery: capabilities.fileSystemAccess,
-      }) ?? '',
-    );
-  } catch (error) {
-    elements.fileInput.disabled = false;
-    setStatus(elements.status, error instanceof Error ? error.message : 'Could not read this PDF.');
-  }
-}
-
 function convert(
   elements: UiElements,
   capabilities: RuntimeCapabilities,
-  file: File,
+  session: OpenSession,
   metadata: ComicMetadata,
 ): void {
   const { cancel, progress, warning, status, fileInput } = elements;
@@ -127,8 +168,12 @@ function convert(
   cancel.addEventListener('click', onCancelClick);
 
   startConversion(
-    file,
-    capabilities,
+    {
+      pool: session.pool,
+      file: session.file,
+      ext: session.ext,
+      fileSystemAccess: capabilities.fileSystemAccess,
+    },
     metadata,
     {
       onProgress(page, pageCount) {

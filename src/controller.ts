@@ -3,10 +3,8 @@ import { buildComicInfoXml } from './core/comicinfo';
 import { padPageName, toOutputFilename, type PageExt } from './core/naming';
 import { errorMessage } from './core/pdf-errors';
 import type { ComicMetadata } from './core/pdf-metadata';
-import { poolSize } from './core/pool-size';
-import type { RuntimeCapabilities } from './core/runtime-capabilities';
 import { createCbzWriter, type ArchiveSink } from './zip/cbz';
-import { openPool } from './worker/pool';
+import type { RenderPool } from './worker/pool';
 
 export interface ConversionHandlers {
   onProgress(page: number, pageCount: number): void;
@@ -17,69 +15,67 @@ export interface ConversionHandlers {
   onCancelled(): void;
 }
 
+export interface ConversionInput {
+  /** The render pool opened when the file was selected; consumed and terminated here. */
+  readonly pool: RenderPool;
+  readonly file: File;
+  readonly ext: PageExt;
+  readonly fileSystemAccess: boolean;
+}
+
 const CBZ_MIME = 'application/vnd.comicbook+zip';
 
 // One PDF at a time: a job in flight owns the worker pool until it settles.
 let running = false;
 
-/** Convert `file` to a CBZ with the given metadata and download it. */
+/** Convert the already-opened PDF pool to a CBZ with `metadata` and download it. */
 export function startConversion(
-  file: File,
-  capabilities: RuntimeCapabilities,
+  input: ConversionInput,
   metadata: ComicMetadata,
   handlers: ConversionHandlers,
   signal?: AbortSignal,
 ): void {
   if (running) {
-    return;
-  }
-  if (!capabilities.offscreenCanvas || !capabilities.moduleWorkers) {
-    handlers.onError('This browser is not supported yet.');
+    // A job already owns the workers; free this surplus pool rather than leak it.
+    input.pool.terminate();
     return;
   }
   running = true;
-  void drive(file, capabilities, metadata, handlers, signal).finally(() => {
+  void drive(input, metadata, handlers, signal).finally(() => {
     running = false;
   });
 }
 
 async function drive(
-  file: File,
-  capabilities: RuntimeCapabilities,
+  input: ConversionInput,
   metadata: ComicMetadata,
   handlers: ConversionHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
+  const { pool, file, ext, fileSystemAccess } = input;
   const filename = toOutputFilename(file.name);
-  const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
-  const encodeType = capabilities.webpEncode ? 'image/webp' : 'image/jpeg';
-
-  // Ask for the save location while the user gesture is still active — before any
-  // await — so File System Access can stream the archive straight to disk.
-  let writable: FileSystemWritableFileStream | undefined;
-  if (capabilities.fileSystemAccess) {
-    try {
-      const handle = await showSaveFilePicker({
-        suggestedName: filename,
-        types: [{ description: 'Comic archive', accept: { [CBZ_MIME]: ['.cbz'] } }],
-      });
-      writable = await handle.createWritable();
-    } catch (error) {
-      if (isAbort(error)) {
-        // Dismissing the save dialog cancels the job before any work begins.
-        handlers.onCancelled();
-        return;
-      }
-      // Any other picker failure falls back to a Blob download.
-    }
-  }
 
   try {
-    const buffer = await file.arrayBuffer();
-    const pool = await openPool(buffer, poolSize(capabilities, buffer.byteLength), {
-      encodeType,
-      ext,
-    });
+    // Ask for the save location while the user gesture is still active — before any
+    // other await — so File System Access can stream the archive straight to disk.
+    let writable: FileSystemWritableFileStream | undefined;
+    if (fileSystemAccess) {
+      try {
+        const handle = await showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'Comic archive', accept: { [CBZ_MIME]: ['.cbz'] } }],
+        });
+        writable = await handle.createWritable();
+      } catch (error) {
+        if (isAbort(error)) {
+          // Dismissing the save dialog cancels the job before any work begins.
+          handlers.onCancelled();
+          return;
+        }
+        // Any other picker failure falls back to a Blob download.
+      }
+    }
+
     try {
       const { pageCount } = pool;
       let sink: ArchiveSink;
@@ -120,19 +116,19 @@ async function drive(
         triggerDownload(blob.blob(), filename);
       }
       handlers.onDone(filename);
-    } finally {
-      pool.terminate();
+    } catch (error) {
+      if (writable) {
+        // Leave no partial file behind on cancel or failure.
+        await writable.abort().catch(() => undefined);
+      }
+      if (isAbort(error)) {
+        handlers.onCancelled();
+        return;
+      }
+      handlers.onError(errorMessage(error, 'Conversion failed.'));
     }
-  } catch (error) {
-    if (writable) {
-      // Leave no partial file behind on cancel or failure.
-      await writable.abort().catch(() => undefined);
-    }
-    if (isAbort(error)) {
-      handlers.onCancelled();
-      return;
-    }
-    handlers.onError(errorMessage(error, 'Conversion failed.'));
+  } finally {
+    pool.terminate();
   }
 }
 

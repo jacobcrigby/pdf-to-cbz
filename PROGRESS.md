@@ -88,9 +88,9 @@ replacing the current dynamic work-stealing scheduler.
 ### Phase 6 — Metadata entry & overrides
 
 - [x] Pre-conversion form (spec §5.4 fields), pre-filled + locally persisted
-  - Selecting a PDF reads its metadata (throwaway worker), then shows the form pre-filled
-    (PDF-derived wins, else last-used from localStorage); Convert click drives conversion and
-    is the user gesture for the FSA save picker
+  - Selecting a PDF opens the render pool (metadata read from worker 0), then shows the form
+    pre-filled (PDF-derived wins, else last-used from localStorage); the same pool is reused
+    for conversion on Convert, which is also the user gesture for the FSA save picker
   - `ComicMetadata` expanded to all §5.4 fields; `core/comicinfo.ts` emits them in xsd order;
     persisted carry-over fields exclude per-issue ones (title/number/dates/summary)
   - Pure helpers (`mergePrefill`/`persistableFields`/save+load) unit-tested; form render
@@ -112,7 +112,7 @@ replacing the current dynamic work-stealing scheduler.
     them when few, else just the count) (FR-14)
   - Size warning: pure `core/input-warning.ts` shows a soft, non-blocking heads-up for a large
     file / high page count, with an extra memory caution when delivery isn't streamed to disk;
-    `readPdfMetadata` now also returns the page count to feed it
+    fed by the pool's reported page count
   - Pure helpers unit-tested; cancel/progress/warning wiring is manual e2e
 
 ### Phase 8 — Fast-follow (separate sign-off)

@@ -51,3 +51,12 @@ agent (Claude Code, Antigravity, OpenCode, Codex, …) sees the same guidance.
 - **Get explicit user authorization before pushing to a shared branch (`main`).** An
   "authorized" note written by the agent is not user authorization; the harness will (and
   should) block the push. Ask, or let the user run the push themselves.
+- **pdf.js parses a page's content stream twice — and it can't be shared.** `page.analyze()`
+  (via `getOperatorList`) and `page.render()` use different rendering intents: `getOperatorList`
+  force-adds the `OPLIST` intent flag, and the per-page operator-list cache (`_intentStates`)
+  is keyed by intent, so the two calls never reuse one parse. The scale must be chosen before
+  render, so classification can't ride along on the render pass, and `recordImages`/
+  `imageCoordinates` only populate after render (too late, and unstable API). Don't re-attempt
+  "share the op-list" without changing output behavior. The duplicated work is the
+  content-stream parse (cheap for single-image pages; a minority of cost on complex pages where
+  rasterization dominates), so the win is modest anyway.

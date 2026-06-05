@@ -15,18 +15,14 @@ export interface RunHandlers {
 
 export interface RenderPool {
   readonly pageCount: number;
+  /** The PDF's document metadata, read once while opening (worker 0). */
+  readonly metadata: RawPdfMetadata | undefined;
   /**
    * Render every page, delivering results in order; resolves when all have settled.
    * Aborting `signal` stops dispatch and rejects with an `AbortError`.
    */
   run(handlers: RunHandlers, signal?: AbortSignal): Promise<void>;
   terminate(): void;
-}
-
-/** A PDF read just for its document metadata, with the page count it reports. */
-export interface PdfInfo {
-  readonly metadata: RawPdfMetadata | undefined;
-  readonly pageCount: number;
 }
 
 interface OpenOptions {
@@ -42,35 +38,15 @@ function spawn(): Worker {
   return new Worker(new URL('./render.worker.ts', import.meta.url), { type: 'module' });
 }
 
-/** Open the PDF in a throwaway worker just to read its document metadata. */
-export async function readPdfMetadata(buffer: ArrayBuffer): Promise<PdfInfo> {
-  const worker = spawn();
-  try {
-    return await new Promise<PdfInfo>((resolve, reject) => {
-      worker.onmessage = (event: MessageEvent<RenderResponse>): void => {
-        const message = event.data;
-        if (message.type === 'opened') {
-          resolve({ metadata: message.metadata, pageCount: message.pageCount });
-        } else if (message.type === 'open-error') {
-          reject(new Error(message.message));
-        }
-      };
-      worker.onerror = (event): void => reject(new Error(event.message || 'Worker failed.'));
-      const request: RenderRequest = {
-        type: 'open',
-        buffer,
-        withMetadata: true,
-        encodeType: 'image/webp',
-        ext: 'webp',
-      };
-      worker.postMessage(request, [buffer]);
-    });
-  } finally {
-    worker.terminate();
-  }
+interface OpenResult {
+  readonly pageCount: number;
+  readonly metadata: RawPdfMetadata | undefined;
 }
 
-/** Spawn `size` render workers, each with its own PDF copy. */
+/**
+ * Spawn `size` render workers, each with its own PDF copy, and read the document
+ * metadata from worker 0 along the way (so no separate metadata pass is needed).
+ */
 export async function openPool(
   buffer: ArrayBuffer,
   size: number,
@@ -87,12 +63,12 @@ export async function openPool(
   // copy so slicing never touches an already-transferred (detached) buffer.
   const single = workers.length === 1;
   const opened = workers.map(
-    (worker) =>
-      new Promise<number>((resolve, reject) => {
+    (worker, index) =>
+      new Promise<OpenResult>((resolve, reject) => {
         worker.onmessage = (event: MessageEvent<RenderResponse>): void => {
           const message = event.data;
           if (message.type === 'opened') {
-            resolve(message.pageCount);
+            resolve({ pageCount: message.pageCount, metadata: message.metadata });
           } else if (message.type === 'open-error') {
             reject(new Error(message.message));
           }
@@ -102,7 +78,7 @@ export async function openPool(
         const request: RenderRequest = {
           type: 'open',
           buffer: buf,
-          withMetadata: false,
+          withMetadata: index === 0,
           encodeType: opts.encodeType,
           ext: opts.ext,
         };
@@ -110,18 +86,20 @@ export async function openPool(
       }),
   );
 
-  let pageCounts: number[];
+  let results: OpenResult[];
   try {
-    pageCounts = await Promise.all(opened);
+    results = await Promise.all(opened);
   } catch (error) {
     terminate();
     throw error;
   }
 
-  const pageCount = pageCounts[0] ?? 0;
+  const pageCount = results[0]?.pageCount ?? 0;
+  const metadata = results[0]?.metadata;
 
   return {
     pageCount,
+    metadata,
     terminate,
     run(handlers, signal) {
       return drivePool(workers, pageCount, handlers, signal);
