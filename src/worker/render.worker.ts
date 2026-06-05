@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { describePdfError } from '../core/pdf-errors';
 import { ENCODE_QUALITY } from '../core/render-config';
 import { renderScale, singleImageScale } from '../core/scale';
 import type { RenderRequest, RenderResponse } from '../core/types';
@@ -39,7 +40,7 @@ async function open(buffer: ArrayBuffer, withMetadata: boolean, type: string): P
         : { type: 'opened', pageCount: doc.pageCount },
     );
   } catch (error) {
-    post({ type: 'open-error', message: messageOf(error, 'Could not read this PDF.') });
+    post({ type: 'open-error', message: describePdfError(error) });
   }
 }
 

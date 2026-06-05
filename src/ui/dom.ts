@@ -5,6 +5,9 @@ export interface UiElements {
   readonly dropzone: HTMLElement;
   readonly fileInput: HTMLInputElement;
   readonly status: HTMLElement;
+  readonly warning: HTMLElement;
+  readonly progress: HTMLProgressElement;
+  readonly cancel: HTMLButtonElement;
   readonly metadata: HTMLElement;
 }
 
@@ -14,6 +17,9 @@ export function getElements(root: Document = document): UiElements {
     dropzone: require(root, '#dropzone', HTMLElement),
     fileInput: require(root, '#file-input', HTMLInputElement),
     status: require(root, '#status', HTMLElement),
+    warning: require(root, '#warning', HTMLElement),
+    progress: require(root, '#progress', HTMLProgressElement),
+    cancel: require(root, '#cancel', HTMLButtonElement),
     metadata: require(root, '#metadata', HTMLElement),
   };
 }

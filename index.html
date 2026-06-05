@@ -53,6 +53,25 @@
         margin-top: 1rem;
         min-height: 1.5em;
       }
+      .warning {
+        margin-top: 0.5rem;
+        min-height: 0;
+        font-size: 0.9rem;
+        opacity: 0.85;
+      }
+      .warning:empty {
+        display: none;
+      }
+      .progress {
+        width: 100%;
+        margin-top: 0.5rem;
+      }
+      .cancel {
+        margin-top: 0.75rem;
+        font: inherit;
+        padding: 0.4rem 1.25rem;
+        cursor: pointer;
+      }
       .metadata {
         margin-top: 1.5rem;
         text-align: left;
@@ -95,13 +114,11 @@
       <label id="dropzone" class="dropzone" for="file-input">
         Drop a PDF here, or click to choose
       </label>
-      <input
-        id="file-input"
-        class="visually-hidden"
-        type="file"
-        accept="application/pdf"
-      />
+      <input id="file-input" class="visually-hidden" type="file" accept="application/pdf" />
       <p id="status" class="status" aria-live="polite"></p>
+      <p id="warning" class="warning" aria-live="polite"></p>
+      <progress id="progress" class="progress" max="1" value="0" hidden></progress>
+      <button id="cancel" class="cancel" type="button" hidden>Cancel</button>
       <section id="metadata" class="metadata" hidden aria-label="Comic metadata"></section>
     </main>
     <script type="module" src="/src/main.ts"></script>

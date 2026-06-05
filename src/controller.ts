@@ -12,6 +12,8 @@ export interface ConversionHandlers {
   onWarning(page: number, message: string): void;
   onDone(filename: string): void;
   onError(message: string): void;
+  /** Cancelled by the user (or the save dialog dismissed): no output produced. */
+  onCancelled(): void;
 }
 
 const CBZ_MIME = 'application/vnd.comicbook+zip';
@@ -25,6 +27,7 @@ export function startConversion(
   capabilities: RuntimeCapabilities,
   metadata: ComicMetadata,
   handlers: ConversionHandlers,
+  signal?: AbortSignal,
 ): void {
   if (running) {
     return;
@@ -34,7 +37,7 @@ export function startConversion(
     return;
   }
   running = true;
-  void drive(file, capabilities, metadata, handlers).finally(() => {
+  void drive(file, capabilities, metadata, handlers, signal).finally(() => {
     running = false;
   });
 }
@@ -44,6 +47,7 @@ async function drive(
   capabilities: RuntimeCapabilities,
   metadata: ComicMetadata,
   handlers: ConversionHandlers,
+  signal?: AbortSignal,
 ): Promise<void> {
   const filename = toOutputFilename(file.name);
   const ext: PageExt = capabilities.webpEncode ? 'webp' : 'jpg';
@@ -61,7 +65,8 @@ async function drive(
       writable = await handle.createWritable();
     } catch (error) {
       if (isAbort(error)) {
-        handlers.onError('Cancelled.');
+        // Dismissing the save dialog cancels the job before any work begins.
+        handlers.onCancelled();
         return;
       }
       // Any other picker failure falls back to a Blob download.
@@ -87,19 +92,22 @@ async function drive(
       const writer = createCbzWriter(sink);
       let written = 0;
 
-      await pool.run({
-        // Pages arrive in reading order, so written-index naming stays contiguous.
-        onPage(_index, bytes) {
-          writer.addStored(padPageName(written, pageCount, ext), bytes);
-          written += 1;
+      await pool.run(
+        {
+          // Pages arrive in reading order, so written-index naming stays contiguous.
+          onPage(_index, bytes) {
+            writer.addStored(padPageName(written, pageCount, ext), bytes);
+            written += 1;
+          },
+          onSkip(index) {
+            handlers.onWarning(index + 1, 'Page skipped.');
+          },
+          onProgress(completed, total) {
+            handlers.onProgress(completed, total);
+          },
         },
-        onSkip(index) {
-          handlers.onWarning(index + 1, 'Page skipped.');
-        },
-        onProgress(completed, total) {
-          handlers.onProgress(completed, total);
-        },
-      });
+        signal,
+      );
 
       writer.addStored(
         'ComicInfo.xml',
@@ -116,8 +124,12 @@ async function drive(
     }
   } catch (error) {
     if (writable) {
-      // Leave no partial file behind on failure.
+      // Leave no partial file behind on cancel or failure.
       await writable.abort().catch(() => undefined);
+    }
+    if (isAbort(error)) {
+      handlers.onCancelled();
+      return;
     }
     handlers.onError(
       error instanceof Error && error.message ? error.message : 'Conversion failed.',

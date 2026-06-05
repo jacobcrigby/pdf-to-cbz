@@ -15,9 +15,18 @@ export interface RunHandlers {
 
 export interface RenderPool {
   readonly pageCount: number;
-  /** Render every page, delivering results in order; resolves when all have settled. */
-  run(handlers: RunHandlers): Promise<void>;
+  /**
+   * Render every page, delivering results in order; resolves when all have settled.
+   * Aborting `signal` stops dispatch and rejects with an `AbortError`.
+   */
+  run(handlers: RunHandlers, signal?: AbortSignal): Promise<void>;
   terminate(): void;
+}
+
+/** A PDF read just for its document metadata, with the page count it reports. */
+export interface PdfInfo {
+  readonly metadata: RawPdfMetadata | undefined;
+  readonly pageCount: number;
 }
 
 interface OpenOptions {
@@ -34,14 +43,14 @@ function spawn(): Worker {
 }
 
 /** Open the PDF in a throwaway worker just to read its document metadata. */
-export async function readPdfMetadata(buffer: ArrayBuffer): Promise<RawPdfMetadata | undefined> {
+export async function readPdfMetadata(buffer: ArrayBuffer): Promise<PdfInfo> {
   const worker = spawn();
   try {
-    return await new Promise<RawPdfMetadata | undefined>((resolve, reject) => {
+    return await new Promise<PdfInfo>((resolve, reject) => {
       worker.onmessage = (event: MessageEvent<RenderResponse>): void => {
         const message = event.data;
         if (message.type === 'opened') {
-          resolve(message.metadata);
+          resolve({ metadata: message.metadata, pageCount: message.pageCount });
         } else if (message.type === 'open-error') {
           reject(new Error(message.message));
         }
@@ -114,19 +123,47 @@ export async function openPool(
   return {
     pageCount,
     terminate,
-    run(handlers) {
-      return drivePool(workers, pageCount, handlers);
+    run(handlers, signal) {
+      return drivePool(workers, pageCount, handlers, signal);
     },
   };
 }
 
-function drivePool(workers: Worker[], pageCount: number, handlers: RunHandlers): Promise<void> {
+function abortError(): DOMException {
+  return new DOMException('Conversion cancelled.', 'AbortError');
+}
+
+function drivePool(
+  workers: Worker[],
+  pageCount: number,
+  handlers: RunHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const window = Math.max(1, workers.length * WINDOW_PER_WORKER);
     const scheduler = createPageScheduler(pageCount, window);
     const pageBytes = new Map<number, Uint8Array<ArrayBuffer>>();
     const idle: Worker[] = [...workers];
     let settledCount = 0;
+    let stopped = false;
+
+    // Cancellation stops dispatch and rejects; the caller terminates the workers.
+    const finish = (run: () => void): void => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      signal?.removeEventListener('abort', onAbort);
+      run();
+    };
+    function onAbort(): void {
+      finish(() => reject(abortError()));
+    }
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    signal?.addEventListener('abort', onAbort);
 
     // Assign queued pages to idle workers while the window allows; a worker the
     // window can't feed yet stays idle until in-order flushing advances it.
@@ -143,6 +180,9 @@ function drivePool(workers: Worker[], pageCount: number, handlers: RunHandlers):
     };
 
     const handle = (worker: Worker, message: RenderResponse): void => {
+      if (stopped) {
+        return;
+      }
       if (message.type === 'rendered') {
         pageBytes.set(message.index, message.bytes);
       } else if (message.type !== 'render-error') {
@@ -162,18 +202,19 @@ function drivePool(workers: Worker[], pageCount: number, handlers: RunHandlers):
       idle.push(worker);
       pump();
       if (scheduler.done) {
-        resolve();
+        finish(resolve);
       }
     };
 
     for (const worker of workers) {
-      worker.onerror = (event): void => reject(new Error(event.message || 'Worker failed.'));
+      worker.onerror = (event): void =>
+        finish(() => reject(new Error(event.message || 'Worker failed.')));
       worker.onmessage = (event: MessageEvent<RenderResponse>): void => handle(worker, event.data);
     }
 
     pump();
     if (scheduler.done) {
-      resolve();
+      finish(resolve);
     }
   });
 }

@@ -6,7 +6,7 @@ change so any agent can resume from the repo alone. See `docs/plan/implementatio
 the full plan and `docs/spec/pdf-to-cbz-v1.md` for the contract.
 
 **Active branch:** `main` (committing directly through v1)
-**Current phase:** Phase 5 — Capability-sized pool
+**Current phase:** Phase 7 — UX hardening (complete); Phase 8 (PWA) next
 
 ## How to resume
 1. Read `AGENTS.md`, then this file, then `docs/spec/pdf-to-cbz-v1.md`.
@@ -87,7 +87,22 @@ replacing the current dynamic work-stealing scheduler.
     smoke-tested in a real browser (23 fields, hidden until a PDF is chosen)
 
 ### Phase 7 — UX hardening
-- [ ] Progress, cancel, warn-and-continue summary, encrypted/corrupt handling, size warning
+- [x] Progress, cancel, warn-and-continue summary, encrypted/corrupt handling, size warning
+  - Progress: `<progress>` bar driven by the pool's `onProgress` (page X of N) alongside the
+    status text
+  - Cancel: a Cancel button during conversion aborts via an `AbortSignal` threaded
+    controller → `pool.run`; the scheduler stops dispatch and rejects `AbortError`, the
+    controller aborts the FSA writable so no partial file is left, and the UI resets to idle.
+    Dismissing the FSA save dialog is treated as the same cancel
+  - Encrypted/corrupt: pure `core/pdf-errors.ts` maps pdf.js error names
+    (Password/Invalid/Missing PDF exceptions) to clear messages; the worker's open path uses
+    it, so both the metadata read and the render pool surface the explanation (FR-3, §8)
+  - Warn-and-continue summary: skipped page numbers collected and shown at the end (lists
+    them when few, else just the count) (FR-14)
+  - Size warning: pure `core/input-warning.ts` shows a soft, non-blocking heads-up for a large
+    file / high page count, with an extra memory caution when delivery isn't streamed to disk;
+    `readPdfMetadata` now also returns the page count to feed it
+  - Pure helpers unit-tested; cancel/progress/warning wiring is manual e2e
 
 ### Phase 8 — Fast-follow (separate sign-off)
 - [ ] PWA (manifest + service worker) on the Pages hosting from Phase 1
